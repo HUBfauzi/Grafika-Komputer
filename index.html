@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Urban Route Map</title>
+
+  <link rel="stylesheet" href="CSS/style.css">
+</head>
+<body>
+
+<div class="container">
+
+  <aside class="sidebar">
+    <h1>Urban Route Map</h1>
+
+    <div class="control-group">
+      <label>Start</label>
+      <select id="startNode"></select>
+    </div>
+
+    <div class="control-group">
+      <label>Tujuan</label>
+      <select id="endNode"></select>
+    </div>
+
+    <button id="btnRoute">Cari Rute</button>
+    <button id="btnRandom">Acak Posisi</button>
+
+    <div id="hasil"></div>
+
+    <div class="legend">
+      <h3>Keterangan</h3>
+      <p><span class="green"></span> Start</p>
+      <p><span class="red"></span> Tujuan</p>
+      <p><span class="blue"></span> Jalur Terbaik</p>
+    </div>
+  </aside>
+
+  <main class="map-wrapper">
+    <canvas id="mapCanvas" width="1000" height="600"></canvas>
+  </main>
+
+</div>
+
+<script src="Javascript/script.js"></script>
+</body>
+</html>
