@@ -3,46 +3,101 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Urban Route Map</title>
-
+  <title>Urban Route Map Tanjungpinang</title>
   <link rel="stylesheet" href="CSS/style.css">
 </head>
 <body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <header class="brand">
+        <p>Grafika Komputer</p>
+        <h1>Urban Route Map Tanjungpinang</h1>
+        <small>Peta spasial SVG dengan Dijkstra, MST, zoom, pan, dan animasi kendaraan.</small>
+        <span id="featureStatus" class="feature-status">Siap</span>
+      </header>
 
-<div class="container">
+      <section class="panel controls" aria-label="Kontrol rute">
+        <h2>Kontrol Rute</h2>
+        <div class="field">
+          <label for="startNode">Start</label>
+          <select id="startNode"></select>
+        </div>
+        <div class="field">
+          <label for="endNode">Tujuan</label>
+          <select id="endNode"></select>
+        </div>
 
-  <aside class="sidebar">
-    <h1>Urban Route Map</h1>
+        <div class="button-grid">
+          <button id="btnRoute" type="button">Cari Rute</button>
+          <button id="btnRandomPosition" type="button">Acak Posisi</button>
+          <button id="btnRandomMap" type="button">Acak Map</button>
+          <button id="btnResetMap" type="button">Reset Map</button>
+        </div>
+      </section>
 
-    <div class="control-group">
-      <label>Start</label>
-      <select id="startNode"></select>
-    </div>
+      <section class="panel playback" aria-label="Kontrol animasi">
+        <button id="btnStart" type="button">Start</button>
+        <button id="btnPause" type="button">Pause</button>
+        <button id="btnResetAnimation" type="button">Reset</button>
+      </section>
 
-    <div class="control-group">
-      <label>Tujuan</label>
-      <select id="endNode"></select>
-    </div>
+      <section class="panel info-panel" aria-label="Informasi rute">
+        <h2>Info Rute</h2>
+        <dl>
+          <div><dt>Start</dt><dd id="infoStart">-</dd></div>
+          <div><dt>Tujuan</dt><dd id="infoEnd">-</dd></div>
+          <div><dt>Rute Node</dt><dd id="infoPath">-</dd></div>
+          <div><dt>Nama Lokasi</dt><dd id="infoLocations">-</dd></div>
+          <div><dt>Total Jarak</dt><dd id="infoDistance">-</dd></div>
+          <div><dt>Jumlah Simpul</dt><dd id="infoNodes">-</dd></div>
+          <div><dt>Jumlah Ruas</dt><dd id="infoEdges">-</dd></div>
+          <div><dt>Status Animasi</dt><dd id="infoStatus">Idle</dd></div>
+        </dl>
+      </section>
 
-    <button id="btnRoute">Cari Rute</button>
-    <button id="btnRandom">Acak Posisi</button>
+      <section class="panel legend" aria-label="Legenda peta">
+        <h2>Legenda</h2>
+        <p><span class="legend-dot start"></span>Start</p>
+        <p><span class="legend-dot end"></span>Tujuan</p>
+        <p><span class="legend-line road"></span>Jalan biasa</p>
+        <p><span class="legend-line route"></span>Jalur terpendek</p>
+        <p><span class="legend-block park"></span>Bangunan/taman</p>
+      </section>
+    </aside>
 
-    <div id="hasil"></div>
+    <main class="map-area">
+      <div class="map-toolbar" aria-label="Kontrol zoom">
+        <button id="btnZoomIn" type="button" title="Zoom in">+</button>
+        <button id="btnZoomOut" type="button" title="Zoom out">-</button>
+        <button id="btnFit" type="button" title="Reset tampilan">Fit</button>
+      </div>
 
-    <div class="legend">
-      <h3>Keterangan</h3>
-      <p><span class="green"></span> Start</p>
-      <p><span class="red"></span> Tujuan</p>
-      <p><span class="blue"></span> Jalur Terbaik</p>
-    </div>
-  </aside>
+      <div id="mapViewport" class="map-viewport">
+        <svg id="cityMap" viewBox="0 0 1400 860" role="img" aria-label="Peta rute perkotaan Tanjungpinang">
+          <defs>
+            <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.18"></feDropShadow>
+            </filter>
+          </defs>
+          <g id="mapRoot">
+            <rect class="map-background" x="0" y="0" width="1400" height="860"></rect>
+            <g id="landmarkLayer"></g>
+            <g id="roadLayer"></g>
+            <g id="routeLayer"></g>
+            <g id="labelLayer"></g>
+            <g id="nodeLayer"></g>
+            <g id="vehicleLayer"></g>
+          </g>
+        </svg>
+      </div>
+    </main>
+  </div>
 
-  <main class="map-wrapper">
-    <canvas id="mapCanvas" width="1000" height="600"></canvas>
-  </main>
-
-</div>
-
-<script src="Javascript/script.js"></script>
+  <script src="Javascript/data.js"></script>
+  <script src="Javascript/algorithms.js"></script>
+  <script src="Javascript/renderer.js"></script>
+  <script src="Javascript/animation.js"></script>
+  <script src="Javascript/ui.js"></script>
+  <script src="Javascript/script.js"></script>
 </body>
 </html>
