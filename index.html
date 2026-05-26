@@ -1,48 +1,153 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Urban Route Map</title>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Urban Route Map Tanjungpinang - Peta spasial perkotaan interaktif dengan algoritma Dijkstra dan animasi kendaraan SVG." />
+  <title>Urban Route Map Tanjungpinang</title>
   <link rel="stylesheet" href="CSS/style.css">
 </head>
 <body>
+  <div id="app">
 
-<div class="container">
+    <!-- ========== PANEL NAVIGASI ATAS ========== -->
+    <header id="topbar">
+      <div id="topbar-left">
+        <h1 id="brand-title">Urban Route Map Tanjungpinang</h1>
+        <div id="brand-label">Peta Spasial Perkotaan &bull; Grafika Komputer</div>
+      </div>
+      <div id="topbar-right">
+        <span id="statusBadge" class="badge">Memuat...</span>
+      </div>
+    </header>
 
-  <aside class="sidebar">
-    <h1>Urban Route Map</h1>
+    <!-- ========== AREA PANDANG PETA ========== -->
+    <main id="mapStage">
+      <svg id="urbanSvg" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg" aria-label="Peta Rute Kota Tanjungpinang">
+        <defs>
+          <filter id="glowRoute" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <g id="cameraGroup">
+          <g id="layerBase"></g>
+          <g id="layerWater"></g>
+          <g id="layerZones"></g>
+          <g id="layerParks"></g>
+          <g id="layerTrees"></g>
+          <g id="layerBuildings"></g>
+          <g id="layerParking"></g>
+          <g id="layerSidewalks"></g>
+          <g id="layerRoadCasing"></g>
+          <g id="layerRoadFill"></g>
+          <g id="layerRoadLine"></g>
+          <g id="layerCrosswalks"></g>
+          <g id="layerStaticCars"></g>
+          <g id="layerRoute"></g>
+          <g id="layerNodes"></g>
+          <g id="layerPins"></g>
+          <g id="layerLabels"></g>
+          <g id="layerVehicle"></g>
+        </g>
+      </svg>
 
-    <div class="control-group">
-      <label>Start</label>
-      <select id="startNode"></select>
-    </div>
+      <!-- ========== PANEL KONTROL MELAYANG ========== -->
+      <section class="panel" id="panelRoute">
+        <div class="panel-header">
+          <span class="panel-icon">&#9783;</span>
+          <span class="panel-title">Kontrol Rute</span>
+          <span class="panel-sub">Dijkstra</span>
+        </div>
+        <div class="form-row">
+          <label for="startSelect">Start</label>
+          <select id="startSelect"></select>
+        </div>
+        <div class="form-row">
+          <label for="endSelect">Tujuan</label>
+          <select id="endSelect"></select>
+        </div>
+        <div class="btn-grid">
+          <button id="findRouteBtn" class="btn-primary" type="button">
+            <span class="btn-icon">&#9654;</span> Cari Rute
+          </button>
+          <button id="shufflePairBtn" class="btn-ghost" type="button">
+            <span class="btn-icon">&#8634;</span> Acak Posisi
+          </button>
+          <button id="shuffleMapBtn" class="btn-accent" type="button">
+            <span class="btn-icon">&#9776;</span> Acak Map
+          </button>
+          <button id="restoreMapBtn" class="btn-ghost" type="button">
+            <span class="btn-icon">&#8617;</span> Reset Map
+          </button>
+        </div>
+      </section>
 
-    <div class="control-group">
-      <label>Tujuan</label>
-      <select id="endNode"></select>
-    </div>
+      <!-- ========== PANEL ANIMASI MELAYANG ========== -->
+      <section class="panel" id="panelMotion">
+        <div class="panel-header">
+          <span class="panel-icon">&#9658;</span>
+          <span class="panel-title">Animasi</span>
+          <span class="panel-sub">Kendaraan</span>
+        </div>
+        <div class="motion-btns">
+          <button id="playBtn" class="btn-primary" type="button">Start</button>
+          <button id="holdBtn" class="btn-ghost" type="button">Pause</button>
+          <button id="rewindBtn" class="btn-ghost" type="button">Reset Animasi</button>
+        </div>
+      </section>
 
-    <button id="btnRoute">Cari Rute</button>
-    <button id="btnRandom">Acak Posisi</button>
+      <!-- ========== INFO RUTE MELAYANG ========== -->
+      <section class="panel" id="panelInfo">
+        <div class="panel-header">
+          <span class="panel-icon">&#9432;</span>
+          <span class="panel-title">Info Rute</span>
+          <span id="summaryDist" class="panel-dist-badge">0 m</span>
+        </div>
+        <dl class="info-dl">
+          <dt>Start</dt>        <dd id="infoStart">-</dd>
+          <dt>Tujuan</dt>       <dd id="infoEnd">-</dd>
+          <dt>Rute Node</dt>    <dd id="infoNodes">-</dd>
+          <dt>Rute Lokasi</dt>  <dd id="infoPlaces">-</dd>
+          <dt>Total Jarak</dt>  <dd id="infoDist">-</dd>
+          <dt>Jumlah Ruas</dt>  <dd id="infoSegs">-</dd>
+        </dl>
+      </section>
 
-    <div id="hasil"></div>
+      <!-- ========== HUD MINI (MODE PELACAKAN) ========== -->
+      <div id="trackingHud">
+        <div class="hud-header">
+          <span id="hudStatus">Berjalan</span>
+          <strong id="hudDist">0 m</strong>
+        </div>
+        <p id="hudRoute">-</p>
+        <div class="hud-bar"><span id="hudBarFill"></span></div>
+        <small id="hudPct">0%</small>
+      </div>
 
-    <div class="legend">
-      <h3>Keterangan</h3>
-      <p><span class="green"></span> Start</p>
-      <p><span class="red"></span> Tujuan</p>
-      <p><span class="blue"></span> Jalur Terbaik</p>
-    </div>
-  </aside>
+      <!-- ========== KONTROL ZOOM MELAYANG ========== -->
+      <nav id="zoomPad">
+        <button id="zoomInBtn" type="button" aria-label="Zoom In" title="Zoom In">+</button>
+        <button id="zoomOutBtn" type="button" aria-label="Zoom Out" title="Zoom Out">&minus;</button>
+        <button id="fitBtn" type="button" title="Fit Peta">Fit</button>
+      </nav>
 
-  <main class="map-wrapper">
-    <canvas id="mapCanvas" width="1000" height="600"></canvas>
-  </main>
+      <!-- ========== LEGENDA PETA ========== -->
+      <aside id="legend">
+        <span class="leg-item"><i class="dot dot-start"></i>Start</span>
+        <span class="leg-item"><i class="dot dot-end"></i>Tujuan</span>
+        <span class="leg-item"><i class="line line-road"></i>Jalan</span>
+        <span class="leg-item"><i class="line line-route"></i>Rute Aktif</span>
+        <span class="leg-item"><i class="swatch swatch-bldg"></i>Bangunan</span>
+        <span class="leg-item"><i class="swatch swatch-park"></i>Taman</span>
+      </aside>
 
-</div>
+    </main>
+  </div>
 
-<script src="Javascript/script.js"></script>
+  <script src="Javascript/script.js"></script>
 </body>
 </html>

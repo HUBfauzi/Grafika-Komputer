@@ -1,107 +1,244 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* =====================================================
+   CSS/style.css
+   Urban Route Map Tanjungpinang — Peta Spasial Kota Top-Down
+   Tema Terang · Glassmorphism · Bayangan Lembut · UI Modern
+===================================================== */
+
+/* ---- ATUR ULANG GAYA (RESET) ---- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ---- VARIABEL DESAIN (TOKENS) ---- */
+:root {
+  --bg: #eef4f7;
+  --land: #f4efe5;
+  --water: #cbeaf3;
+  --panel: rgba(255,255,255,0.92);
+  --border: #d5e0ea;
+  --ink: #0f172a;
+  --ink-soft: #334155;
+  --muted: #64748b;
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --teal: #0f766e;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --accent: #7c3aed;
+  --road-casing: #374151;
+  --road-surface: #6b7280;
+  --road-lane: #9ca3af;
+  --route: #0ea5e9;
+  --building: #c9b292;
+  --building-alt: #d5c0a0;
+  --park: #9be7b0;
+  --shadow: 0 12px 36px rgba(15,23,42,.12), 0 2px 8px rgba(15,23,42,.06);
+  --shadow-soft: 0 6px 20px rgba(15,23,42,.08);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --ease: 220ms cubic-bezier(.4,0,.2,1);
 }
 
-body {
-  font-family: Arial, sans-serif;
-  background: #1f2937;
-  color: white;
-  overflow: hidden;
+html, body { width: 100%; height: 100%; overflow: hidden; }
+body { font-family: var(--font); background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; }
+button, select { font: inherit; }
+
+#app { position: relative; width: 100vw; height: 100vh; min-height: 520px; overflow: hidden; }
+
+/* ---- BARIS NAVIGASI ATAS (TOPBAR) ---- */
+#topbar {
+  position: absolute; top: 12px; left: 14px; right: 14px; z-index: 30;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  min-height: 56px; padding: 10px 18px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-soft); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  transition: opacity var(--ease), transform var(--ease), min-height var(--ease);
+}
+#brand-title { font-size: 16px; font-weight: 800; color: var(--ink); letter-spacing: -.01em; }
+#brand-label { margin-top: 2px; font-size: 10.5px; font-weight: 700; color: var(--teal); text-transform: uppercase; letter-spacing: .08em; }
+#topbar-right { display: flex; justify-content: flex-end; min-width: 0; }
+.badge {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 280px; min-height: 28px; padding: 5px 14px;
+  overflow: hidden; color: #075985; background: linear-gradient(135deg,#e0f2fe,#f0f9ff);
+  border: 1px solid #bae6fd; border-radius: 999px; font-size: 11.5px; font-weight: 800;
+  text-overflow: ellipsis; white-space: nowrap;
 }
 
-.container {
-  display: flex;
-  width: 100vw;
-  height: 100vh;
-}
+/* ---- AREA PETA ---- */
+#mapStage { position: absolute; inset: 0; overflow: hidden; background: var(--bg); }
+#urbanSvg { display: block; width: 100%; height: 100%; cursor: grab; background: var(--bg); touch-action: none; user-select: none; }
+#urbanSvg.dragging { cursor: grabbing; }
 
-.sidebar {
-  width: 300px;
-  background: #111827;
-  padding: 20px;
-  border-right: 2px solid #374151;
+/* ---- PANEL KONTROL ---- */
+.panel, #zoomPad, #legend, #trackingHud {
+  position: absolute; z-index: 20; background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
 }
+.panel { padding: 14px; transition: opacity var(--ease), transform var(--ease), width var(--ease), padding var(--ease); }
+.panel-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(213,224,234,.7); }
+.panel-icon { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: linear-gradient(135deg,var(--primary),#3b82f6); color: #fff; border-radius: 7px; font-size: 12px; flex-shrink: 0; }
+.panel-title { flex: 1; color: var(--ink); font-size: 13px; font-weight: 800; }
+.panel-sub { color: var(--muted); font-size: 10.5px; font-weight: 700; text-align: right; }
+.panel-dist-badge { display: inline-flex; align-items: center; padding: 2px 10px; background: linear-gradient(135deg,#dbeafe,#eff6ff); color: var(--primary); font-size: 11px; font-weight: 800; border-radius: 999px; border: 1px solid #bfdbfe; }
 
-.sidebar h1 {
-  margin-bottom: 20px;
-  font-size: 28px;
+#panelRoute { top: 82px; left: 16px; width: 278px; }
+#panelMotion { left: 16px; bottom: 18px; width: 290px; }
+#panelInfo { right: 16px; bottom: 18px; width: 320px; max-height: min(48vh,300px); overflow: auto; }
+#panelInfo::-webkit-scrollbar { width: 4px; }
+#panelInfo::-webkit-scrollbar-track { background: transparent; }
+#panelInfo::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+
+/* ---- ELEMEN FORMULIR ---- */
+.form-row + .form-row { margin-top: 8px; }
+label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+select { width: 100%; height: 36px; padding: 0 10px; color: var(--ink-soft); background: rgba(248,250,252,.96); border: 1px solid #cbd5e1; border-radius: var(--radius-sm); outline: none; font-size: 12px; font-weight: 700; transition: border-color var(--ease), box-shadow var(--ease); }
+select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+
+/* ---- ELEMEN TOMBOL ---- */
+.btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 12px; }
+.motion-btns { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 7px; }
+button { min-height: 34px; padding: 6px 10px; border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer; font-size: 11.5px; font-weight: 800; line-height: 1.15; transition: background var(--ease), border-color var(--ease), box-shadow var(--ease), transform 120ms ease; white-space: normal; }
+button:active { transform: translateY(1px); }
+.btn-icon { font-size: 10px; margin-right: 2px; opacity: .8; }
+.btn-primary { color: #fff; background: linear-gradient(135deg,var(--primary),#3b82f6); border-color: var(--primary-dark); }
+.btn-primary:hover { background: linear-gradient(135deg,var(--primary-dark),var(--primary)); box-shadow: 0 6px 18px rgba(37,99,235,.25); }
+.btn-accent { color: #fff; background: linear-gradient(135deg,var(--accent),#8b5cf6); border-color: #6d28d9; }
+.btn-accent:hover { background: linear-gradient(135deg,#6d28d9,var(--accent)); box-shadow: 0 6px 18px rgba(124,58,237,.25); }
+.btn-ghost { color: var(--ink-soft); background: rgba(241,245,249,.96); border-color: #cbd5e1; }
+.btn-ghost:hover { background: #e2e8f0; border-color: #94a3b8; }
+
+/* ---- DAFTAR INFORMASI RUTE (DL) ---- */
+.info-dl { display: grid; grid-template-columns: 86px minmax(0,1fr); gap: 7px 10px; }
+.info-dl dt { padding-top: 1px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.info-dl dd { min-width: 0; color: var(--ink-soft); font-size: 11.5px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; word-break: break-word; }
+
+/* ---- HUD MINI PELACAKAN ---- */
+#trackingHud { right: 16px; bottom: 18px; width: 320px; padding: 14px; color: #f8fafc; background: rgba(15,23,42,.88); border-color: rgba(226,232,240,.15); border-radius: var(--radius); opacity: 0; pointer-events: none; transform: translateY(14px); transition: opacity var(--ease), transform var(--ease); }
+.hud-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.hud-header span { display: inline-flex; align-items: center; padding: 2px 10px; background: rgba(255,255,255,.1); border-radius: 999px; color: #cbd5e1; font-size: 11px; font-weight: 800; }
+.hud-header strong { color: #38bdf8; font-size: 13px; font-weight: 850; white-space: nowrap; }
+#hudRoute { margin-bottom: 10px; color: #dbeafe; font-size: 11px; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
+.hud-bar { width: 100%; height: 5px; overflow: hidden; background: rgba(255,255,255,.12); border-radius: 999px; }
+#hudBarFill { display: block; width: 0%; height: 100%; background: linear-gradient(90deg,#38bdf8,#2dd4bf); border-radius: inherit; transition: width 90ms linear; }
+#hudPct { display: block; margin-top: 5px; color: #94a3b8; font-size: 10.5px; font-weight: 800; text-align: right; }
+
+/* ---- TOMBOL KONTROL ZOOM ---- */
+#zoomPad { top: 82px; right: 16px; display: grid; gap: 4px; padding: 6px; }
+#zoomPad button { width: 38px; min-height: 36px; padding: 0; color: var(--ink-soft); background: rgba(248,250,252,.96); border-color: #cbd5e1; font-size: 16px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; }
+#zoomPad button:hover { background: #e2e8f0; }
+#fitBtn { font-size: 11px; font-weight: 800; }
+
+/* ---- LEGENDA PETA ---- */
+#legend { left: 50%; bottom: 18px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px 10px; max-width: calc(100vw - 680px); padding: 8px 14px; transform: translateX(-50%); transition: opacity var(--ease), transform var(--ease); }
+.leg-item { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-soft); font-size: 10.5px; font-weight: 750; white-space: nowrap; }
+.dot, .swatch, .line { display: inline-block; flex: 0 0 auto; }
+.dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.8); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.dot-start { background: var(--success); }
+.dot-end { background: var(--danger); }
+.line { width: 22px; height: 3.5px; border-radius: 999px; }
+.line-road { background: #94a3b8; }
+.line-route { background: var(--route); }
+.swatch { width: 14px; height: 10px; border-radius: 3px; }
+.swatch-bldg { background: var(--building); border: 1px solid #b69a76; }
+.swatch-park { background: var(--park); border: 1px solid #74c69d; }
+
+/* ---- MODE FOKUS KENDARAAN ---- */
+body.is-tracking #topbar { min-height: 44px; padding-top: 7px; padding-bottom: 7px; }
+body.is-tracking #brand-title { font-size: 13px; }
+body.is-tracking #brand-label { display: none; }
+body.is-tracking #panelRoute, body.is-tracking #panelInfo, body.is-tracking #legend { opacity: 0; pointer-events: none; }
+body.is-tracking #panelRoute { transform: translateX(-20px); }
+body.is-tracking #panelInfo { transform: translateY(16px); }
+body.is-tracking #legend { transform: translate(-50%,14px); }
+body.is-tracking #panelMotion { width: 240px; padding: 10px; }
+body.is-tracking #panelMotion .panel-header, body.is-tracking #playBtn { display: none; }
+body.is-tracking #panelMotion .motion-btns { grid-template-columns: 1fr 1.4fr; }
+body.is-tracking #trackingHud { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+/* =====================================================
+   KELAS ELEMEN PETA SVG — Gaya Kota Top-Down
+===================================================== */
+
+.land-fill { fill: #d4cfc4; }
+.sea-fill { fill: var(--water); }
+.water-edge { fill: none; stroke: rgba(14,116,144,.18); stroke-width: 2; }
+.zone-fill { fill: #cdc7b5; opacity: .45; }
+
+/* Area Taman & Pepohonan */
+.park-fill { fill: #6abf69; stroke: #4a9e4a; stroke-width: 1.2; }
+.tree-crown { fill: #2d8a2d; opacity: .85; }
+.tree-trunk { fill: #6b4226; }
+
+/* Kompleks Bangunan 3D Top-Down */
+.bldg-shadow { fill: rgba(15,23,42,.1); }
+.bldg-base { fill: #9e9585; stroke: #7a7265; stroke-width: .8; }
+.bldg-roof { fill: #b5ad9e; stroke: #8a8275; stroke-width: .6; }
+.bldg-window { fill: rgba(56,189,248,.25); stroke: rgba(56,189,248,.4); stroke-width: .5; }
+.bldg-detail { fill: #8a8275; }
+
+/* Area Parkir Kendaraan */
+.parking-fill { fill: #8a8275; stroke: #6b6458; stroke-width: .8; }
+.parking-line { stroke: #d4cfc4; stroke-width: 1.2; }
+.parking-line-dash { stroke: #b5ad9e; stroke-width: .8; stroke-dasharray: 4 4; }
+
+/* Lajur Trotoar Pejalan Kaki */
+.sidewalk-fill { fill: none; stroke: #e5e2d9; stroke-width: 54px; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Lajur Jalan Raya Gaya Kota Perkotaan */
+.road-casing, .road-fill, .road-center, .road-edge, .active-route { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.road-casing { stroke: #1e293b; stroke-width: 42px; }
+.road-fill { stroke: #334155; stroke-width: 30px; }
+.road-center { stroke: #ffffff; stroke-width: 2.5px; stroke-dasharray: 8 12; }
+.road-edge { stroke: #fbbf24; stroke-width: 32px; opacity: 0.85; }
+
+/* Penyeberangan Zebra Cross */
+.crosswalk-stripe { fill: #ffffff; opacity: 0.9; }
+
+/* Mobil Statis Terparkir */
+.static-car-body { stroke-width: 1px; }
+.static-car-window { fill: rgba(56,189,248,.35); }
+
+/* Lajur Rute Aktif Terpilih */
+.active-route { stroke: var(--route); stroke-width: 12px; opacity: 0.7; }
+
+/* Label Teks Peta & Nama Simpang */
+.dist-label, .node-label { pointer-events: none; paint-order: stroke; stroke: rgba(255,255,255,.94); stroke-linejoin: round; }
+.dist-label { fill: #475569; font-size: 7.5px; font-weight: 750; stroke-width: 2px; }
+.node-circle { fill: #ffffff; stroke: var(--teal); stroke-width: 2.5px; }
+.node-code { fill: var(--ink); font-size: 9.5px; font-weight: 900; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.node-label { fill: #334155; font-size: 8.5px; font-weight: 750; stroke-width: 2px; }
+
+/* Penanda Titik Awal & Akhir (Pins) */
+.ep-circle { stroke: #fff; stroke-width: 3px; }
+.ep-start { fill: var(--success); }
+.ep-end { fill: var(--danger); }
+.ep-text { fill: #fff; font-size: 10px; font-weight: 900; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+
+/* Mobil Animasi Bergerak */
+.car-body { fill: var(--teal); stroke: #064e3b; stroke-width: 1.4px; }
+.car-window { fill: #a7f3d0; }
+.car-front { fill: #38bdf8; }
+.car-wheel { fill: #111827; }
+
+/* ---- RESPONSIVITAS BENTUK LAYAR ---- */
+@media (max-width: 1180px) {
+  #panelRoute, #panelMotion { width: 256px; }
+  #panelInfo, #trackingHud { width: 286px; }
+  #legend { max-width: 340px; }
 }
-
-.control-group {
-  margin-bottom: 15px;
+@media (max-height: 720px) {
+  #topbar { min-height: 46px; padding-top: 7px; padding-bottom: 7px; }
+  #brand-title { font-size: 14px; }
+  #brand-label { font-size: 10px; }
+  #panelRoute, #zoomPad { top: 68px; }
+  #panelInfo { max-height: 220px; }
 }
-
-.control-group label {
-  display: block;
-  margin-bottom: 5px;
-}
-
-select,
-button {
-  width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: 10px;
-  margin-top: 5px;
-}
-
-button {
-  background: #2563eb;
-  color: white;
-  cursor: pointer;
-  margin-bottom: 10px;
-  transition: 0.3s;
-}
-
-button:hover {
-  background: #1d4ed8;
-}
-
-.map-wrapper {
-  flex: 1;
-  overflow: auto;
-  background: #e5e7eb;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-canvas {
-  background: white;
-  border-radius: 15px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-}
-
-#hasil {
-  margin-top: 20px;
-  background: #1e293b;
-  padding: 15px;
-  border-radius: 10px;
-  min-height: 80px;
-}
-
-.legend {
-  margin-top: 20px;
-}
-
-.legend span {
-  display: inline-block;
-  width: 15px;
-  height: 15px;
-  margin-right: 8px;
-  border-radius: 50%;
-}
-
-.green {
-  background: green;
-}
-
-.red {
-  background: red;
-}
-
-.blue {
-  background: blue;
+@media (max-width: 760px) {
+  #topbar { left: 8px; right: 8px; padding: 8px 12px; }
+  .badge { max-width: 160px; font-size: 10px; }
+  #panelRoute { left: 8px; width: min(272px, calc(100vw - 72px)); }
+  #panelMotion { left: 8px; width: 240px; }
+  #panelInfo, #trackingHud { right: 8px; width: min(286px, calc(100vw - 16px)); }
+  #zoomPad { right: 8px; }
+  #legend { display: none; }
+  .panel { padding: 10px; }
 }
