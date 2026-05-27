@@ -1795,7 +1795,7 @@ function init() {
 }
 
 /* =====================================================
-   // ADVANCED CAMERA & VIEWPOINT SYSTEM
+   // CAMERA & VIEWPOINT SYSTEM
 ===================================================== */
 
 function applyCamera() {
