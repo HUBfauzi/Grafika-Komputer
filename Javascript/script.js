@@ -23,21 +23,21 @@ const defaultGraph = {
 };
 
 const defaultNodeNames = {
-  A: "Pelabuhan Sri Bintan",
-  B: "Jalan Merdeka",
-  C: "Jalan Pramuka",
-  D: "Bundaran Dompak",
-  E: "Kedai Kopi Lewa",
-  F: "Basuki Raceway",
-  G: "GraPARI Telkomsel",
-  H: "Madina Stempel",
-  I: "Bundaran Pamedan",
-  J: "Masjid Al-Furqan",
-  K: "Sate Pak Sugeng",
-  L: "Bukit Barisan 1",
-  M: "D&T Fruit Puding",
-  N: "Senggarang Link",
-  O: "Sate Pak Ndut"
+  A: "Simpang Acak 1",
+  B: "Simpang Acak 2",
+  C: "Simpang Acak 3",
+  D: "Simpang Acak 4",
+  E: "Simpang Acak 5",
+  F: "Simpang Acak 6",
+  G: "Simpang Acak 7",
+  H: "Simpang Acak 8",
+  I: "Simpang Acak 9",
+  J: "Simpang Acak 10",
+  K: "Simpang Acak 11",
+  L: "Simpang Acak 12",
+  M: "Simpang Acak 13",
+  N: "Simpang Acak 14",
+  O: "Simpang Acak 15"
 };
 
 const defaultNodePositions = {
