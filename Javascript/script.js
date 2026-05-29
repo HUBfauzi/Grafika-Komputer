@@ -1886,62 +1886,24 @@ function zoomOut() {
 
 function fitMap() {
 
-  const positions =
-    Object.values(activeNodePositions);
+  const vw = mapStage.clientWidth;
+  const vh = mapStage.clientHeight;
 
-  if (!positions.length) return;
+  // ukuran asli SVG map
+  const mapWidth = 1000;
+  const mapHeight = 520;
 
-  const xs = positions.map(p => p.x);
-  const ys = positions.map(p => p.y);
+  // hitung scale responsive
+  const scale = Math.min(
+    vw / mapWidth,
+    vh / mapHeight
+  ) * 0.9;
 
-  const padding = 180;
+  camScale = scale;
 
-  const minX =
-    Math.min(...xs) - padding;
-
-  const minY =
-    Math.min(...ys) - padding;
-
-  const maxX =
-    Math.max(...xs) + padding;
-
-  const maxY =
-    Math.max(...ys) + padding;
-
-  const mapWidth =
-    maxX - minX;
-
-  const mapHeight =
-    maxY - minY;
-
-  const viewportWidth =
-    svg.clientWidth ||
-    window.innerWidth;
-
-  const viewportHeight =
-    svg.clientHeight ||
-    window.innerHeight;
-
-  const scaleX =
-    viewportWidth / mapWidth;
-
-  const scaleY =
-    viewportHeight / mapHeight;
-
-  camScale =
-    clamp(
-      Math.min(scaleX, scaleY),
-      0.4,
-      1.3
-    );
-
-  camX =
-    (viewportWidth - mapWidth * camScale) / 2
-    - minX * camScale;
-
-  camY =
-    (viewportHeight - mapHeight * camScale) / 2
-    - minY * camScale;
+  // CENTER viewport
+  camX = (vw / 2) - (mapWidth * scale / 2);
+  camY = (vh / 2) - (mapHeight * scale / 2);
 
   applyCamera();
 }
@@ -2158,3 +2120,7 @@ window.addEventListener(
 applyCamera();
 
 init();
+
+setTimeout(() => {
+  fitMap();
+}, 50);
