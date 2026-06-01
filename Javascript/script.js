@@ -1709,66 +1709,6 @@ function updateMotionButtons() {
 }
 
 /* =====================================================
-   // KONTROL PERGESERAN (PAN) DAN PERBESARAN (ZOOM)
-===================================================== */
-
-function applyCamera() {
-  cameraGroup.setAttribute("transform", `translate(${round1(camX)}, ${round1(camY)}) scale(${round1(camScale)})`);
-}
-
-function zoomAt(factor, screenX, screenY) {
-  const nextScale = clamp(camScale * factor, 0.34, 4);
-  const ratio = nextScale / camScale;
-  camX = screenX - ratio * (screenX - camX);
-  camY = screenY - ratio * (screenY - camY);
-  camScale = nextScale;
-  applyCamera();
-}
-
-function fitMap() {
-  const positions = Object.values(activeNodePositions);
-  if (!positions.length) return;
-
-  const xs = positions.map(p => p.x);
-  const ys = positions.map(p => p.y);
-  const minX = Math.min(...xs) - 150;
-  const minY = Math.min(...ys) - 130;
-  const maxX = Math.max(...xs) + 150;
-  const maxY = Math.max(...ys) + 130;
-  const mapW = maxX - minX;
-  const mapH = maxY - minY;
-  const viewportW = svg.clientWidth || window.innerWidth || 1200;
-  const viewportH = svg.clientHeight || window.innerHeight || 720;
-
-  camScale = clamp(Math.min(viewportW / mapW, viewportH / mapH), 0.62, 1.2);
-  camX = (viewportW - mapW * camScale) / 2 - minX * camScale;
-  camY = (viewportH - mapH * camScale) / 2 - minY * camScale;
-  applyCamera();
-}
-
-function startPan(event) {
-  if (event.button !== 0) return;
-  isDragging = true;
-  dragStartX = event.clientX;
-  dragStartY = event.clientY;
-  camStartX = camX;
-  camStartY = camY;
-  svg.classList.add("dragging");
-}
-
-function movePan(event) {
-  if (!isDragging) return;
-  camX = camStartX + event.clientX - dragStartX;
-  camY = camStartY + event.clientY - dragStartY;
-  applyCamera();
-}
-
-function endPan() {
-  isDragging = false;
-  svg.classList.remove("dragging");
-}
-
-/* =====================================================
    // PENGIKATAN EVENT ANTARMUKA (UI EVENTS)
 ===================================================== */
 
@@ -1827,10 +1767,6 @@ function bindEvents() {
     setStatus(`${mapStatusLabel()} / Siap`);
   });
 
-  zoomInBtn.addEventListener("click", () => zoomAt(1.2, svg.clientWidth / 2, svg.clientHeight / 2));
-  zoomOutBtn.addEventListener("click", () => zoomAt(1 / 1.2, svg.clientWidth / 2, svg.clientHeight / 2));
-  fitBtn.addEventListener("click", fitMap);
-
   startSelect.addEventListener("change", () => {
     currentStart = startSelect.value;
   });
@@ -1839,31 +1775,7 @@ function bindEvents() {
     currentEnd = endSelect.value;
   });
 
-  svg.addEventListener("mousedown", startPan);
-  window.addEventListener("mousemove", movePan);
-  window.addEventListener("mouseup", endPan);
   window.addEventListener("resize", fitMap);
-
-  /* Dukungan sentuh (Touch) untuk pergeseran di perangkat mobile */
-  svg.addEventListener("touchstart", e => {
-    if (e.touches.length === 1) {
-      const t = e.touches[0];
-      startPan({ button: 0, clientX: t.clientX, clientY: t.clientY });
-    }
-  }, { passive: true });
-  svg.addEventListener("touchmove", e => {
-    if (e.touches.length === 1 && isDragging) {
-      e.preventDefault();
-      movePan({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-    }
-  }, { passive: false });
-  svg.addEventListener("touchend", endPan);
-
-  svg.addEventListener("wheel", event => {
-    event.preventDefault();
-    const rect = svg.getBoundingClientRect();
-    zoomAt(event.deltaY < 0 ? 1.12 : 1 / 1.12, event.clientX - rect.left, event.clientY - rect.top);
-  }, { passive: false });
 }
 
 /* =====================================================
@@ -1882,4 +1794,333 @@ function init() {
   }
 }
 
+/* =====================================================
+   // CAMERA & VIEWPOINT SYSTEM
+===================================================== */
+
+function applyCamera() {
+  cameraGroup.setAttribute(
+    "transform",
+    `
+      translate(${round1(camX)}, ${round1(camY)})
+      scale(${round1(camScale)})
+    `
+  );
+}
+
+/* =====================================================
+   // ZOOM SYSTEM
+===================================================== */
+
+function zoomAtPoint(factor, pointX, pointY) {
+
+  const previousScale = camScale;
+
+  const nextScale = clamp(
+    previousScale * factor,
+    0.35,
+    4.5
+  );
+
+  const worldX = (pointX - camX) / previousScale;
+  const worldY = (pointY - camY) / previousScale;
+
+  camScale = nextScale;
+
+  camX = pointX - worldX * nextScale;
+  camY = pointY - worldY * nextScale;
+
+  applyCamera();
+}
+
+function smoothZoom(targetScale) {
+
+  targetScale = clamp(targetScale, 0.35, 4.5);
+
+  const startScale = camScale;
+  const startTime = performance.now();
+  const duration = 180;
+
+  function animate(now) {
+
+    const elapsed = now - startTime;
+
+    const t = clamp(elapsed / duration, 0, 1);
+
+    const eased =
+      1 - Math.pow(1 - t, 3);
+
+    camScale =
+      startScale +
+      (targetScale - startScale) * eased;
+
+    applyCamera();
+
+    if (t < 1) {
+      requestAnimationFrame(animate);
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+
+function zoomIn() {
+
+  const target =
+    camScale * 1.18;
+
+  smoothZoom(target);
+}
+
+function zoomOut() {
+
+  const target =
+    camScale / 1.18;
+
+  smoothZoom(target);
+}
+
+/* =====================================================
+   // AUTO FIT CAMERA
+===================================================== */
+
+function fitMap() {
+
+  const vw = mapStage.clientWidth;
+  const vh = mapStage.clientHeight;
+
+  // ukuran asli SVG map
+  const mapWidth = 1000;
+  const mapHeight = 520;
+
+  // hitung scale responsive
+  const scale = Math.min(
+    vw / mapWidth,
+    vh / mapHeight
+  ) * 0.9;
+
+  camScale = scale;
+
+  // CENTER viewport
+  camX = (vw / 2) - (mapWidth * scale / 2);
+  camY = (vh / 2) - (mapHeight * scale / 2);
+
+  applyCamera();
+}
+
+/* =====================================================
+   // PAN / DRAG CAMERA
+===================================================== */
+
+function startPan(event) {
+
+  if (event.button !== 0) return;
+
+  isDragging = true;
+
+  dragStartX = event.clientX;
+  dragStartY = event.clientY;
+
+  camStartX = camX;
+  camStartY = camY;
+
+  svg.classList.add("dragging");
+}
+
+function movePan(event) {
+
+  if (!isDragging) return;
+
+  const dx =
+    event.clientX - dragStartX;
+
+  const dy =
+    event.clientY - dragStartY;
+
+  camX = camStartX + dx;
+  camY = camStartY + dy;
+
+  applyCamera();
+}
+
+function endPan() {
+
+  isDragging = false;
+
+  svg.classList.remove("dragging");
+}
+
+/* =====================================================
+   // MOUSE CONTROLS
+===================================================== */
+
+svg.addEventListener(
+  "mousedown",
+  startPan
+);
+
+window.addEventListener(
+  "mousemove",
+  movePan
+);
+
+window.addEventListener(
+  "mouseup",
+  endPan
+);
+
+/* =====================================================
+   // TRACKPAD / WHEEL ZOOM
+===================================================== */
+
+svg.addEventListener(
+  "wheel",
+  event => {
+
+    event.preventDefault();
+
+    const rect =
+      svg.getBoundingClientRect();
+
+    const mouseX =
+      event.clientX - rect.left;
+
+    const mouseY =
+      event.clientY - rect.top;
+
+    const zoomFactor =
+      event.deltaY < 0
+        ? 1.12
+        : 1 / 1.12;
+
+    zoomAtPoint(
+      zoomFactor,
+      mouseX,
+      mouseY
+    );
+  },
+  { passive: false }
+);
+
+/* =====================================================
+   // TOUCH SUPPORT
+===================================================== */
+
+svg.addEventListener(
+  "touchstart",
+  event => {
+
+    if (event.touches.length !== 1)
+      return;
+
+    const touch =
+      event.touches[0];
+
+    startPan({
+      button: 0,
+      clientX: touch.clientX,
+      clientY: touch.clientY
+    });
+  },
+  { passive: true }
+);
+
+svg.addEventListener(
+  "touchmove",
+  event => {
+
+    if (
+      event.touches.length !== 1 ||
+      !isDragging
+    ) return;
+
+    event.preventDefault();
+
+    const touch =
+      event.touches[0];
+
+    movePan({
+      clientX: touch.clientX,
+      clientY: touch.clientY
+    });
+  },
+  { passive: false }
+);
+
+svg.addEventListener(
+  "touchend",
+  endPan
+);
+
+/* =====================================================
+   // BUTTON CONTROLS
+===================================================== */
+
+zoomInBtn.addEventListener(
+  "click",
+  zoomIn
+);
+
+zoomOutBtn.addEventListener(
+  "click",
+  zoomOut
+);
+
+fitBtn.addEventListener(
+  "click",
+  fitMap
+);
+
+/* =====================================================
+   // KEYBOARD NAVIGATION
+===================================================== */
+
+window.addEventListener(
+  "keydown",
+  event => {
+
+    const speed = 40;
+
+    switch (
+      event.key.toLowerCase()
+    ) {
+
+      case "w":
+      case "arrowup":
+        camY += speed;
+        break;
+
+      case "s":
+      case "arrowdown":
+        camY -= speed;
+        break;
+
+      case "a":
+      case "arrowleft":
+        camX += speed;
+        break;
+
+      case "d":
+      case "arrowright":
+        camX -= speed;
+        break;
+
+      default:
+        return;
+    }
+
+    applyCamera();
+  }
+);
+
+/* =====================================================
+   // INITIALIZE CAMERA
+===================================================== */
+
+applyCamera();
+
 init();
+
+setTimeout(() => {
+  fitMap();
+}, 50);
