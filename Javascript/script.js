@@ -1,7 +1,7 @@
 "use strict";
 
 /* =====================================================
-   // DATA DEFAUL / KOTA TANJUNGPINANG
+   // DATA DEFAULT / KOTA TANJUNGPINANG
 ===================================================== */
 
 const defaultGraph = {
@@ -632,12 +632,40 @@ function graphFromEdges(nodes, edges) {
   return graph;
 }
 
+function fixDeadEnds(graph, nodes, positions) {
+  for (const node of nodes) {
+    const neighbors = Object.keys(graph[node] || {});
+    if (neighbors.length === 1) {
+      let nearestNode = null;
+      let minDist = Infinity;
+      
+      for (const potential of nodes) {
+        if (potential === node || neighbors.includes(potential)) continue;
+        const d = pointDistance(positions[node], positions[potential]);
+        if (d < minDist) {
+          minDist = d;
+          nearestNode = potential;
+        }
+      }
+      
+      if (nearestNode) {
+        const weight = Math.max(45, Math.round(minDist * 0.86));
+        graph[node][nearestNode] = weight;
+        graph[nearestNode][node] = weight;
+      }
+    }
+  }
+}
+
 function generateRandomMap() {
   for (let attempt = 0; attempt < 30; attempt++) {
     const count = 12 + Math.floor(Math.random() * 6); // 12-17 simpang (nodes)
     const nodes = Array.from({ length: count }, (_, index) => String(index + 1));
     const positions = generateRandomNodePositions(nodes);
     const graph = buildMST(nodes, positions);
+
+    // Eliminasi jalan buntu pada graph acak
+    fixDeadEnds(graph, nodes, positions);
 
     if (!isGraphConnected(graph)) continue;
 
@@ -646,7 +674,6 @@ function generateRandomMap() {
     activeNodeNames = {};
     for (const node of nodes) activeNodeNames[node] = `Simpang Acak ${node}`;
     
-    // Kita harus memanggil rebuildEdgeGeometryCache() SEBELUM membuat dekorasi agar sampleRoadPoints menggunakan cache yang benar!
     rebuildEdgeGeometryCache();
     currentMapMode = "random";
 
@@ -806,7 +833,6 @@ function generateRandomDecorations(graph, positions) {
   const parkingLots = [];
   const staticCars = [];
 
-  // Hasilkan Taman Kota (Parks)
   for (let attempt = 0; attempt < 100 && parks.length < 5; attempt++) {
     const park = {
       x: Math.round(randomBetween(80, 1380)),
@@ -824,7 +850,6 @@ function generateRandomDecorations(graph, positions) {
     }
   }
 
-  // Hasilkan Area Parkir (Parking Lots)
   for (let attempt = 0; attempt < 100 && parkingLots.length < 4; attempt++) {
     const isVert = Math.random() > 0.5;
     const lot = {
@@ -840,7 +865,6 @@ function generateRandomDecorations(graph, positions) {
       parkingLots.push(lot);
       existing.push(lot);
 
-      // Isi mobil statis terparkir di area parkir ini
       const count = 1 + Math.floor(Math.random() * 3);
       const colors = ["#dc2626", "#eab308", "#2563eb", "#ffffff", "#7c3aed"];
       for (let s = 0; s < count; s++) {
@@ -862,7 +886,6 @@ function generateRandomDecorations(graph, positions) {
     }
   }
 
-  // Hasilkan Kompleks Bangunan (Buildings)
   for (let attempt = 0; attempt < 250 && buildingClusters.length < 14; attempt++) {
     const cluster = makeBuildingCluster(randomBetween(80, 1320), randomBetween(80, 680));
     const rects = cluster.rects;
@@ -883,7 +906,6 @@ function generateRandomDecorations(graph, positions) {
     }
   }
 
-  // Isi mobil statis secara dinamis di bahu jalan (jauh dari simpang jalan)
   const colors = ["#dc2626", "#eab308", "#2563eb", "#ffffff", "#7c3aed", "#06b6d4"];
   const shuffledRoadPoints = shuffle([...roadPoints]);
   let roadCarsPlaced = 0;
@@ -978,20 +1000,17 @@ function generateRoadAlignedDecorations() {
         const ny = tx;
         const angle = Math.atan2(ty, tx) * 180 / Math.PI;
         
-        // Letakkan di sisi kiri dan kanan jalan secara sejajar
         const offsets = [46, -46];
         
         for (const sideOffset of offsets) {
           const cx = pt.x + nx * sideOffset;
           const cy = pt.y + ny * sideOffset;
           
-          // Hindari simpang node agar penanda/pin tidak tertutup
           const nearNode = Object.values(activeNodePositions).some(nodePos => {
             return pointDistance({ x: cx, y: cy }, nodePos) < 62;
           });
           if (nearNode) continue;
           
-          // Mencegah tabrakan antar elemen dekorasi
           const overlaps = existing.some(other => {
             return pointDistance({ x: cx, y: cy }, { x: other.x, y: other.y }) < 32;
           });
@@ -1001,7 +1020,6 @@ function generateRoadAlignedDecorations() {
           const choice = hashVal % 10;
           
           if (choice < 6) {
-            // Gedung pseudo-3D melengkung searah jalan
             const w = 24 + (hashVal % 10);
             const h = 18 + ((hashVal >> 2) % 6);
             const bldg = {
@@ -1015,7 +1033,6 @@ function generateRoadAlignedDecorations() {
             buildingClusters.push({ rects: [bldg] });
             existing.push({ x: cx, y: cy });
           } else if (choice < 8) {
-            // Area parkir pinggir jalan (street-side parking) sejajar jalan
             const lot = {
               x: Math.round(cx),
               y: Math.round(cy),
@@ -1027,7 +1044,6 @@ function generateRoadAlignedDecorations() {
             parkingLots.push(lot);
             existing.push({ x: cx, y: cy });
             
-            // Isi mobil terparkir di slot tersebut
             if ((hashVal % 3) > 0) {
               const carColors = ["#dc2626", "#eab308", "#2563eb", "#ffffff", "#7c3aed", "#0ea5e9"];
               const carColor = carColors[hashVal % carColors.length];
@@ -1043,7 +1059,6 @@ function generateRoadAlignedDecorations() {
               });
             }
           } else {
-            // Pohon rindang pembatas trotoar jalan
             streetTrees.push({ x: Math.round(cx), y: Math.round(cy) });
             existing.push({ x: cx, y: cy });
           }
@@ -1052,7 +1067,6 @@ function generateRoadAlignedDecorations() {
     }
   }
   
-  // Hasilkan taman kota hijau di area kosong yang jauh dari jalan
   for (let px = 200; px < VIEWBOX.w - 200; px += 240) {
     for (let py = 180; py < VIEWBOX.h - 180; py += 180) {
       let minDist = Infinity;
@@ -1110,10 +1124,6 @@ function generateRoadAlignedDecorations() {
   };
 }
 
-/* =====================================================
-   // PENERJEMAH / RENDERER DEKORASI KOTA PERKOTAAN
-===================================================== */
-
 function renderDecorations() {
   clearLayer(layerBase);
   clearLayer(layerWater);
@@ -1123,12 +1133,10 @@ function renderDecorations() {
   clearLayer(layerBuildings);
   clearLayer(layerParking);
 
-  // 1. Lapisan Tanah Dasar (Base Land)
   layerBase.appendChild(svgEl("rect", {
     x: 0, y: 0, width: VIEWBOX.w, height: VIEWBOX.h, class: "land-fill"
   }));
 
-  // Garis kisi-kisi (grid) tipis untuk estetika peta skematik tata kota
   const gridGroup = svgEl("g", { opacity: 0.05 });
   for (let gx = 100; gx < VIEWBOX.w; gx += 200) {
     gridGroup.appendChild(svgEl("line", { x1: gx, y1: 0, x2: gx, y2: VIEWBOX.h, stroke: "#6b7280", "stroke-width": 1 }));
@@ -1138,37 +1146,31 @@ function renderDecorations() {
   }
   layerBase.appendChild(gridGroup);
 
-  // 2. Area Perairan (Water)
   for (const water of activeDecorations.water || []) {
     layerWater.appendChild(svgEl("path", { d: water.d, class: "sea-fill" }));
     layerWater.appendChild(svgEl("path", { d: water.d, class: "water-edge" }));
   }
 
-  // 3. Zona Perkotaan / Distrik (City Zones)
   for (const zone of activeDecorations.zones || []) {
     layerZones.appendChild(svgEl("rect", {
       x: zone.x, y: zone.y, width: zone.w, height: zone.h, rx: zone.rx || 24, class: "zone-fill"
     }));
   }
 
-  // 4. Taman Kota & Pepohonan (Parks & Trees)
   for (const park of activeDecorations.parks || []) {
     drawPark(park);
   }
 
-  // 5. Area Parkir Kendaraan (Parking)
   for (const lot of activeDecorations.parkingLots || []) {
     drawParkingLot(lot);
   }
 
-  // 6. Kompleks Bangunan (Buildings)
   for (const cluster of activeDecorations.buildingClusters || []) {
     for (const rect of cluster.rects || []) {
       drawBuilding(rect);
     }
   }
   
-  // 7. Pohon Jalanan (Street Trees)
   for (const tree of activeDecorations.streetTrees || []) {
     layerTrees.appendChild(svgEl("circle", {
       cx: tree.x, cy: tree.y, r: 2.2, class: "tree-trunk"
@@ -1194,11 +1196,9 @@ function drawPark(park) {
       const cx = round1(park.x + stepX * col);
       const cy = round1(park.y + stepY * row);
       
-      // Batang pohon
       layerTrees.appendChild(svgEl("circle", {
         cx, cy, r: 2.2, class: "tree-trunk"
       }));
-      // Tajuk/daun pohon
       layerTrees.appendChild(svgEl("circle", {
         cx, cy, r: 8.5, class: "tree-crown"
       }));
@@ -1212,17 +1212,14 @@ function drawParkingLot(lot) {
     transform: `translate(${lot.x}, ${lot.y}) rotate(${rot})`
   });
 
-  // Area parkir dasar berwarna abu-abu
   group.appendChild(svgEl("rect", {
     x: -lot.w/2, y: -lot.h/2, width: lot.w, height: lot.h, rx: 4, class: "parking-fill"
   }));
 
-  // Garis pembatas tepi parkiran
   group.appendChild(svgEl("rect", {
     x: -lot.w/2, y: -lot.h/2, width: lot.w, height: lot.h, rx: 4, fill: "none", stroke: "#6b6458", "stroke-width": 1.2
   }));
 
-  // Marka garis parkir (Spots)
   const isVertical = lot.vertical !== undefined ? lot.vertical : (lot.w > lot.h);
   if (isVertical) {
     const slotSize = lot.w / lot.slots;
@@ -1254,17 +1251,14 @@ function drawBuilding(b) {
   const hw = b.w / 2;
   const hh = b.h / 2;
 
-  // Efek bayangan gedung
   group.appendChild(svgEl("rect", {
     x: -hw + 4, y: -hh + 5, width: b.w, height: b.h, rx: b.rx || 5, class: "bldg-shadow"
   }));
 
-  // Lapisan dasar gedung (Base)
   group.appendChild(svgEl("rect", {
     x: -hw, y: -hh, width: b.w, height: b.h, rx: b.rx || 5, class: "bldg-base"
   }));
 
-  // Atap gedung (dibuat agak mengecil ke dalam untuk efek 3D Top-Down)
   const roofInset = 3;
   group.appendChild(svgEl("rect", {
     x: -hw + roofInset,
@@ -1275,7 +1269,6 @@ function drawBuilding(b) {
     class: "bldg-roof"
   }));
 
-  // Elemen atap tambahan (seperti kotak ventilasi udara)
   if (b.w > 18 && b.h > 14) {
     const boxW = Math.max(4, b.w * 0.35);
     const boxH = Math.max(4, b.h * 0.35);
@@ -1313,18 +1306,12 @@ function renderRoads() {
 
       const pathData = createBezierPath(from, to, edgeKey);
 
-      // Lapisan 1: Trotoar beton terluar (Sidewalk curbs) berwarna krem/putih-lembut
       layerSidewalks.appendChild(svgEl("path", { d: pathData, class: "sidewalk-fill", "stroke-width": 54 }));
-      // Lapisan 2: Pembatas jalan (Road casing) garis tepi hitam aspal
       layerRoadCasing.appendChild(svgEl("path", { d: pathData, class: "road-casing", "stroke-width": 42 }));
-      // Lapisan 3: Marka tepi jalan kuning padat (Road edges)
       layerRoadCasing.appendChild(svgEl("path", { d: pathData, class: "road-edge", "stroke-width": 32 }));
-      // Lapisan 4: Permukaan aspal utama abu-abu gelap (Road fill)
       layerRoadFill.appendChild(svgEl("path", { d: pathData, class: "road-fill", "stroke-width": 30 }));
-      // Lapisan 5: Marka pembagi lajur jalan garis putus-putus putih (Lane dividers)
       layerRoadLine.appendChild(svgEl("path", { d: pathData, class: "road-center", "stroke-width": 2.5 }));
 
-      // Tambahkan label teks jarak di titik tengah jalan (midpoint)
       const curve = getRoadCurve(from, to, edgeKey);
       const labelPoint = pointOnCurve(curve, 0.5);
       addText(layerLabels, round1(labelPoint.x), round1(labelPoint.y - 12), `${weight} m`, "dist-label", {
@@ -1337,7 +1324,6 @@ function renderRoads() {
 function renderCrosswalks() {
   clearLayer(layerCrosswalks);
 
-  // Gambar penyeberangan zebra cross di persimpangan jalan utama
   const positions = activeNodePositions;
   const graph = activeGraph;
   const seenJunctions = new Set();
@@ -1346,7 +1332,6 @@ function renderCrosswalks() {
     const pos = positions[node];
     const neighborKeys = Object.keys(neighbors);
     
-    // Zebra cross pada jalan-jalan yang terhubung ke simpang ini
     for (const nextNode of neighborKeys) {
       const jKey = [node, nextNode].sort().join(":");
       if (seenJunctions.has(jKey)) continue;
@@ -1354,7 +1339,6 @@ function renderCrosswalks() {
 
       const { curve } = getPathAndCurveForEdge(node, nextNode);
       
-      // Posisi zebra cross digeser sedikit dari titik koordinat simpang agar pas di mulut jalan
       const offsetT = 45 / (pointDistance(pos, positions[nextNode]) || 1);
       const t1 = clamp(offsetT, 0.08, 0.25);
       const t2 = clamp(1 - offsetT, 0.75, 0.92);
@@ -1371,9 +1355,9 @@ function renderCrosswalks() {
 function drawZebraAtCurve(point, curve, t) {
   const tang = tangentOnCurve(curve, t);
   const len = Math.sqrt(tang.x * tang.x + tang.y * tang.y) || 1;
-  const tx = tang.x / len; // Vektor satuan tangen (searah kurva jalan)
+  const tx = tang.x / len;
   const ty = tang.y / len;
-  const nx = -ty; // Vektor satuan normal (tegak lurus terhadap kurva jalan)
+  const nx = -ty;
   const ny = tx;
 
   const group = svgEl("g", { opacity: 0.8 });
@@ -1409,22 +1393,18 @@ function renderStaticCars() {
       transform: `translate(${car.x}, ${car.y}) rotate(${car.rot})`
     });
 
-    // Bayangan mobil
     group.appendChild(svgEl("rect", {
       x: -6, y: -3, width: 12, height: 6, rx: 1.5, fill: "rgba(15, 23, 42, 0.25)"
     }));
 
-    // Badan mobil
     group.appendChild(svgEl("rect", {
       x: -7, y: -3.5, width: 14, height: 7, rx: 1.8, fill: car.color, class: "static-car-body", stroke: "#1e293b"
     }));
 
-    // Kaca depan mobil
     group.appendChild(svgEl("rect", {
       x: 0, y: -2.2, width: 4, height: 4.4, rx: 0.8, class: "static-car-window"
     }));
 
-    // Lampu depan mobil
     group.appendChild(svgEl("circle", { cx: 5.5, cy: -2, r: 0.7, fill: "#fef08a" }));
     group.appendChild(svgEl("circle", { cx: 5.5, cy: 2, r: 0.7, fill: "#fef08a" }));
 
@@ -1439,7 +1419,6 @@ function renderNodes() {
     const pos = activeNodePositions[node];
     const group = svgEl("g");
 
-    // Penanda lingkaran simpang (Base)
     group.appendChild(svgEl("circle", {
       cx: pos.x, cy: pos.y, r: 13, class: "node-circle"
     }));
@@ -1447,7 +1426,6 @@ function renderNodes() {
     addText(group, pos.x, pos.y, node, "node-code");
     layerNodes.appendChild(group);
 
-    // Label nama simpang / Landmark Perkotaan Tanjungpinang
     addText(layerLabels, pos.x, pos.y + 24, activeNodeNames[node], "node-label", {
       "text-anchor": "middle"
     });
@@ -1813,20 +1791,13 @@ function applyCamera() {
 ===================================================== */
 
 function zoomAtPoint(factor, pointX, pointY) {
-
   const previousScale = camScale;
-
-  const nextScale = clamp(
-    previousScale * factor,
-    0.35,
-    4.5
-  );
+  const nextScale = clamp(previousScale * factor, 0.35, 4.5);
 
   const worldX = (pointX - camX) / previousScale;
   const worldY = (pointY - camY) / previousScale;
 
   camScale = nextScale;
-
   camX = pointX - worldX * nextScale;
   camY = pointY - worldY * nextScale;
 
@@ -1834,26 +1805,17 @@ function zoomAtPoint(factor, pointX, pointY) {
 }
 
 function smoothZoom(targetScale) {
-
   targetScale = clamp(targetScale, 0.35, 4.5);
-
   const startScale = camScale;
   const startTime = performance.now();
   const duration = 180;
 
   function animate(now) {
-
     const elapsed = now - startTime;
-
     const t = clamp(elapsed / duration, 0, 1);
+    const eased = 1 - Math.pow(1 - t, 3);
 
-    const eased =
-      1 - Math.pow(1 - t, 3);
-
-    camScale =
-      startScale +
-      (targetScale - startScale) * eased;
-
+    camScale = startScale + (targetScale - startScale) * eased;
     applyCamera();
 
     if (t < 1) {
@@ -1865,18 +1827,12 @@ function smoothZoom(targetScale) {
 }
 
 function zoomIn() {
-
-  const target =
-    camScale * 1.18;
-
+  const target = camScale * 1.18;
   smoothZoom(target);
 }
 
 function zoomOut() {
-
-  const target =
-    camScale / 1.18;
-
+  const target = camScale / 1.18;
   smoothZoom(target);
 }
 
@@ -1884,26 +1840,30 @@ function zoomOut() {
    // AUTO FIT CAMERA
 ===================================================== */
 
+/* =====================================================
+   // AUTO FIT CAMERA (OPTIMIZED FOR FLOATING PANELS)
+===================================================== */
+
 function fitMap() {
+  const mapStageEl = $("mapStage");
+  if (!mapStageEl) return;
 
-  const vw = mapStage.clientWidth;
-  const vh = mapStage.clientHeight;
+  const vw = mapStageEl.clientWidth;
+  const vh = mapStageEl.clientHeight;
 
-  // ukuran asli SVG map
-  const mapWidth = 1000;
-  const mapHeight = 520;
+  // Ukuran map dasar sesuai dengan viewBox pada index.html
+  const mapWidth = 1600;
+  const mapHeight = 900;
 
-  // hitung scale responsive
-  const scale = Math.min(
-    vw / mapWidth,
-    vh / mapHeight
-  ) * 0.9;
-
+  // Diturunkan ke 0.78 agar peta mengecil sedikit dan tidak tertutup panel/legenda
+  const scale = Math.min(vw / mapWidth, vh / mapHeight) * 0.78;
   camScale = scale;
 
-  // CENTER viewport
+  // Kunci koordinat di tengah viewport
   camX = (vw / 2) - (mapWidth * scale / 2);
-  camY = (vh / 2) - (mapHeight * scale / 2);
+  
+  // Ditambahkan +25 agar posisi peta turun sedikit, mengompensasi topbar di atas
+  camY = (vh / 2) - (mapHeight * scale / 2) + 25;
 
   applyCamera();
 }
@@ -1913,14 +1873,11 @@ function fitMap() {
 ===================================================== */
 
 function startPan(event) {
-
   if (event.button !== 0) return;
-
   isDragging = true;
 
   dragStartX = event.clientX;
   dragStartY = event.clientY;
-
   camStartX = camX;
   camStartY = camY;
 
@@ -1928,14 +1885,10 @@ function startPan(event) {
 }
 
 function movePan(event) {
-
   if (!isDragging) return;
 
-  const dx =
-    event.clientX - dragStartX;
-
-  const dy =
-    event.clientY - dragStartY;
+  const dx = event.clientX - dragStartX;
+  const dy = event.clientY - dragStartY;
 
   camX = camStartX + dx;
   camY = camStartY + dy;
@@ -1944,9 +1897,7 @@ function movePan(event) {
 }
 
 function endPan() {
-
   isDragging = false;
-
   svg.classList.remove("dragging");
 }
 
@@ -1954,171 +1905,93 @@ function endPan() {
    // MOUSE CONTROLS
 ===================================================== */
 
-svg.addEventListener(
-  "mousedown",
-  startPan
-);
-
-window.addEventListener(
-  "mousemove",
-  movePan
-);
-
-window.addEventListener(
-  "mouseup",
-  endPan
-);
+svg.addEventListener("mousedown", startPan);
+window.addEventListener("mousemove", movePan);
+window.addEventListener("mouseup", endPan);
 
 /* =====================================================
    // TRACKPAD / WHEEL ZOOM
 ===================================================== */
 
-svg.addEventListener(
-  "wheel",
-  event => {
+svg.addEventListener("wheel", event => {
+  event.preventDefault();
+  const rect = svg.getBoundingClientRect();
+  const mouseX = event.clientX - rect.left;
+  const mouseY = event.clientY - rect.top;
 
-    event.preventDefault();
-
-    const rect =
-      svg.getBoundingClientRect();
-
-    const mouseX =
-      event.clientX - rect.left;
-
-    const mouseY =
-      event.clientY - rect.top;
-
-    const zoomFactor =
-      event.deltaY < 0
-        ? 1.12
-        : 1 / 1.12;
-
-    zoomAtPoint(
-      zoomFactor,
-      mouseX,
-      mouseY
-    );
-  },
-  { passive: false }
-);
+  const zoomFactor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
+  zoomAtPoint(zoomFactor, mouseX, mouseY);
+}, { passive: false });
 
 /* =====================================================
    // TOUCH SUPPORT
 ===================================================== */
 
-svg.addEventListener(
-  "touchstart",
-  event => {
+svg.addEventListener("touchstart", event => {
+  if (event.touches.length !== 1) return;
+  const touch = event.touches[0];
+  startPan({
+    button: 0,
+    clientX: touch.clientX,
+    clientY: touch.clientY
+  });
+}, { passive: true });
 
-    if (event.touches.length !== 1)
-      return;
+svg.addEventListener("touchmove", event => {
+  if (event.touches.length !== 1 || !isDragging) return;
+  event.preventDefault();
 
-    const touch =
-      event.touches[0];
+  const touch = event.touches[0];
+  movePan({
+    clientX: touch.clientX,
+    clientY: touch.clientY
+  });
+}, { passive: false });
 
-    startPan({
-      button: 0,
-      clientX: touch.clientX,
-      clientY: touch.clientY
-    });
-  },
-  { passive: true }
-);
-
-svg.addEventListener(
-  "touchmove",
-  event => {
-
-    if (
-      event.touches.length !== 1 ||
-      !isDragging
-    ) return;
-
-    event.preventDefault();
-
-    const touch =
-      event.touches[0];
-
-    movePan({
-      clientX: touch.clientX,
-      clientY: touch.clientY
-    });
-  },
-  { passive: false }
-);
-
-svg.addEventListener(
-  "touchend",
-  endPan
-);
+svg.addEventListener("touchend", endPan);
 
 /* =====================================================
    // BUTTON CONTROLS
 ===================================================== */
 
-zoomInBtn.addEventListener(
-  "click",
-  zoomIn
-);
-
-zoomOutBtn.addEventListener(
-  "click",
-  zoomOut
-);
-
-fitBtn.addEventListener(
-  "click",
-  fitMap
-);
+zoomInBtn.addEventListener("click", zoomIn);
+zoomOutBtn.addEventListener("click", zoomOut);
+fitBtn.addEventListener("click", fitMap);
 
 /* =====================================================
    // KEYBOARD NAVIGATION
 ===================================================== */
 
-window.addEventListener(
-  "keydown",
-  event => {
-
-    const speed = 40;
-
-    switch (
-      event.key.toLowerCase()
-    ) {
-
-      case "w":
-      case "arrowup":
-        camY += speed;
-        break;
-
-      case "s":
-      case "arrowdown":
-        camY -= speed;
-        break;
-
-      case "a":
-      case "arrowleft":
-        camX += speed;
-        break;
-
-      case "d":
-      case "arrowright":
-        camX -= speed;
-        break;
-
-      default:
-        return;
-    }
-
-    applyCamera();
+window.addEventListener("keydown", event => {
+  const speed = 40;
+  switch (event.key.toLowerCase()) {
+    case "w":
+    case "arrowup":
+      camY += speed;
+      break;
+    case "s":
+    case "arrowdown":
+      camY -= speed;
+      break;
+    case "a":
+    case "arrowleft":
+      camX += speed;
+      break;
+    case "d":
+    case "arrowright":
+      camX -= speed;
+      break;
+    default:
+      return;
   }
-);
+  applyCamera();
+});
 
 /* =====================================================
    // INITIALIZE CAMERA
 ===================================================== */
 
 applyCamera();
-
 init();
 
 setTimeout(() => {
