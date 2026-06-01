@@ -38,6 +38,7 @@
           <g id="layerWater"></g>
           <g id="layerZones"></g>
           <g id="layerParks"></g>
+          <g id="layerSawah"></g>
           <g id="layerTrees"></g>
           <g id="layerBuildings"></g>
           <g id="layerParking"></g>
@@ -47,6 +48,8 @@
           <g id="layerRoadLine"></g>
           <g id="layerCrosswalks"></g>
           <g id="layerStaticCars"></g>
+          <g id="layerStreetlights"></g>
+          <g id="layerTrafficSigns"></g>
           <g id="layerRoute"></g>
           <g id="layerNodes"></g>
           <g id="layerPins"></g>
@@ -57,32 +60,45 @@
 
       <!-- ========== PANEL KONTROL MELAYANG ========== -->
       <section class="panel" id="panelRoute">
+        <button id="toggleRouteBtn" class="toggle-sidebar-btn-left" type="button" aria-label="Toggle Route Panel" title="Buka/Tutup Kontrol Rute">&#10094;</button>
         <div class="panel-header">
           <span class="panel-icon">&#9783;</span>
           <span class="panel-title">Kontrol Rute</span>
           <span class="panel-sub">Dijkstra</span>
         </div>
-        <div class="form-row">
-          <label for="startSelect">Start</label>
-          <select id="startSelect"></select>
-        </div>
-        <div class="form-row">
-          <label for="endSelect">Tujuan</label>
-          <select id="endSelect"></select>
-        </div>
-        <div class="btn-grid">
-          <button id="findRouteBtn" class="btn-primary" type="button">
-            <span class="btn-icon">&#9654;</span> Cari Rute
-          </button>
-          <button id="shufflePairBtn" class="btn-ghost" type="button">
-            <span class="btn-icon">&#8634;</span> Acak Posisi
-          </button>
-          <button id="shuffleMapBtn" class="btn-accent" type="button">
-            <span class="btn-icon">&#9776;</span> Acak Map
-          </button>
-          <button id="restoreMapBtn" class="btn-ghost" type="button">
-            <span class="btn-icon">&#8617;</span> Reset Map
-          </button>
+        <div class="panel-body">
+          <div class="form-row">
+            <label for="startSelect">Start</label>
+            <select id="startSelect"></select>
+          </div>
+          <div class="form-row">
+            <label for="endSelect">Tujuan</label>
+            <select id="endSelect"></select>
+          </div>
+          <div class="form-row">
+            <label for="themeSelect">Pilih Peta & Tema</label>
+            <select id="themeSelect">
+              <option value="tanjungpinang" selected>Peta 1: Tanjungpinang (Sawah & Kota)</option>
+              <option value="city">Peta 2: Metropolitan (Jakarta - Full Kota)</option>
+              <option value="rural">Peta 3: Pedesaan (Desa & Alam)</option>
+              <option value="coastal">Peta 4: Pesisir Pantai (Coastal & Resort)</option>
+              <option value="highland">Peta 5: Pegunungan & Hutan (Highlands & Forest)</option>
+            </select>
+          </div>
+          <div class="btn-grid">
+            <button id="findRouteBtn" class="btn-primary" type="button">
+              <span class="btn-icon">&#9654;</span> Cari Rute
+            </button>
+            <button id="shufflePairBtn" class="btn-ghost" type="button">
+              <span class="btn-icon">&#8634;</span> Acak Posisi
+            </button>
+            <button id="shuffleMapBtn" class="btn-accent" type="button">
+              <span class="btn-icon">&#9776;</span> Acak Map
+            </button>
+            <button id="restoreMapBtn" class="btn-ghost" type="button">
+              <span class="btn-icon">&#8617;</span> Reset Map
+            </button>
+          </div>
         </div>
       </section>
 
@@ -102,19 +118,22 @@
 
       <!-- ========== INFO RUTE MELAYANG ========== -->
       <section class="panel" id="panelInfo">
+        <button id="toggleInfoBtn" class="toggle-sidebar-btn" type="button" aria-label="Toggle Sidebar" title="Buka/Tutup Info Rute">&#10095;</button>
         <div class="panel-header">
           <span class="panel-icon">&#9432;</span>
           <span class="panel-title">Info Rute</span>
           <span id="summaryDist" class="panel-dist-badge">0 m</span>
         </div>
-        <dl class="info-dl">
-          <dt>Start</dt>        <dd id="infoStart">-</dd>
-          <dt>Tujuan</dt>       <dd id="infoEnd">-</dd>
-          <dt>Rute Node</dt>    <dd id="infoNodes">-</dd>
-          <dt>Rute Lokasi</dt>  <dd id="infoPlaces">-</dd>
-          <dt>Total Jarak</dt>  <dd id="infoDist">-</dd>
-          <dt>Jumlah Ruas</dt>  <dd id="infoSegs">-</dd>
-        </dl>
+        <div class="panel-body">
+          <dl class="info-dl">
+            <dt>Start</dt>        <dd id="infoStart">-</dd>
+            <dt>Tujuan</dt>       <dd id="infoEnd">-</dd>
+            <dt>Rute Node</dt>    <dd id="infoNodes">-</dd>
+            <dt>Rute Lokasi</dt>  <dd id="infoPlaces">-</dd>
+            <dt>Total Jarak</dt>  <dd id="infoDist">-</dd>
+            <dt>Jumlah Ruas</dt>  <dd id="infoSegs">-</dd>
+          </dl>
+        </div>
       </section>
 
       <!-- ========== HUD MINI (MODE PELACAKAN) ========== -->
@@ -137,12 +156,19 @@
 
       <!-- ========== LEGENDA PETA ========== -->
       <aside id="legend">
-        <span class="leg-item"><i class="dot dot-start"></i>Start</span>
-        <span class="leg-item"><i class="dot dot-end"></i>Tujuan</span>
-        <span class="leg-item"><i class="line line-road"></i>Jalan</span>
-        <span class="leg-item"><i class="line line-route"></i>Rute Aktif</span>
-        <span class="leg-item"><i class="swatch swatch-bldg"></i>Bangunan</span>
-        <span class="leg-item"><i class="swatch swatch-park"></i>Taman</span>
+        <span class="leg-item" id="leg-start"><i class="dot dot-start"></i>Start</span>
+        <span class="leg-item" id="leg-end"><i class="dot dot-end"></i>Tujuan</span>
+        <span class="leg-item" id="leg-road"><i class="line line-road"></i>Jalan</span>
+        <span class="leg-item" id="leg-route"><i class="line line-route"></i>Rute Aktif</span>
+        <span class="leg-item" id="leg-bldg"><i class="swatch swatch-bldg"></i>Bangunan</span>
+        <span class="leg-item" id="leg-park"><i class="swatch swatch-park"></i>Taman</span>
+        <span class="leg-item" id="leg-sawah"><i class="swatch swatch-sawah"></i>Sawah</span>
+        <span class="leg-item" id="leg-water"><i class="swatch swatch-water"></i>Sungai/Laut</span>
+        <span class="leg-item" id="leg-light"><i class="dot dot-light"></i>Lampu</span>
+        <span class="leg-item" id="leg-sign"><i class="dot dot-sign"></i>Rambu</span>
+        <span class="leg-item" id="leg-mountain"><i class="swatch swatch-mountain"></i>Gunung</span>
+        <span class="leg-item" id="leg-pine"><i class="swatch swatch-pine"></i>Hutan/Pohon</span>
+        <span class="leg-item" id="leg-palm"><i class="swatch swatch-palm"></i>Pohon Kelapa</span>
       </aside>
 
     </main>

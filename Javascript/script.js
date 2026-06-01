@@ -59,10 +59,6 @@ const defaultNodePositions = {
 };
 
 const defaultDecorations = {
-  water: [
-    { d: "M 1320 0 H 1600 V 170 C 1535 155 1485 165 1430 142 C 1380 118 1350 128 1320 100 Z" },
-    { d: "M 0 750 C 60 730 120 760 180 740 C 240 720 280 750 340 738 L 340 900 H 0 Z" }
-  ],
   zones: [
     { x: 55, y: 55, w: 420, h: 290, rx: 28 },
     { x: 530, y: 80, w: 410, h: 260, rx: 28 },
@@ -178,6 +174,7 @@ let activeNodeNames = deepCopy(defaultNodeNames);
 let activeNodePositions = deepCopy(defaultNodePositions);
 let activeDecorations = deepCopy(defaultDecorations);
 let currentMapMode = "tanjungpinang";
+let currentMapTheme = "tanjungpinang";
 
 let currentStart = "A";
 let currentEnd = "D";
@@ -221,6 +218,7 @@ const layerBase = $("layerBase");
 const layerWater = $("layerWater");
 const layerZones = $("layerZones");
 const layerParks = $("layerParks");
+const layerSawah = $("layerSawah");
 const layerTrees = $("layerTrees");
 const layerBuildings = $("layerBuildings");
 const layerParking = $("layerParking");
@@ -230,6 +228,8 @@ const layerRoadFill = $("layerRoadFill");
 const layerRoadLine = $("layerRoadLine");
 const layerCrosswalks = $("layerCrosswalks");
 const layerStaticCars = $("layerStaticCars");
+const layerStreetlights = $("layerStreetlights");
+const layerTrafficSigns = $("layerTrafficSigns");
 const layerRoute = $("layerRoute");
 const layerNodes = $("layerNodes");
 const layerPins = $("layerPins");
@@ -677,7 +677,7 @@ function generateRandomMap() {
     rebuildEdgeGeometryCache();
     currentMapMode = "random";
 
-    activeDecorations = generateRoadAlignedDecorations();
+    activeDecorations = generateThemeDecorations(activeGraph, activeNodePositions, currentMapTheme);
     return true;
   }
 
@@ -920,10 +920,6 @@ function generateRandomDecorations(graph, positions) {
   }
 
   return {
-    water: [
-      { d: "M 1308 0 H 1600 V 158 C 1524 142 1478 130 1410 150 C 1375 162 1348 132 1308 110 Z" },
-      { d: "M 0 760 C 55 740 110 770 170 748 C 230 726 270 756 320 745 L 320 900 H 0 Z" }
-    ],
     zones: [
       { x: 78, y: 78, w: 420, h: 255, rx: 28 },
       { x: 570, y: 110, w: 410, h: 250, rx: 28 },
@@ -970,25 +966,209 @@ function renderFullMap() {
   renderNodes();
 }
 
-function generateRoadAlignedDecorations() {
+function updateMapBgGradient(theme) {
+  let defs = svg.querySelector("defs");
+  if (!defs) {
+    defs = svgEl("defs");
+    svg.insertBefore(defs, svg.firstChild);
+  }
+  
+  // Find or create gradient
+  let grad = defs.querySelector("#mapBgGradient");
+  if (grad) grad.parentNode.removeChild(grad);
+  
+  grad = svgEl("linearGradient", { id: "mapBgGradient", x1: "0%", y1: "0%", x2: "100%", y2: "100%" });
+  
+  let stop1, stop2;
+  if (theme === "city") {
+    stop1 = "#eaeef2";
+    stop2 = "#cbd5e1";
+  } else if (theme === "rural") {
+    stop1 = "#f7fee7";
+    stop2 = "#d9f99d";
+  } else if (theme === "coastal") {
+    stop1 = "#fef9c3";
+    stop2 = "#fef08a";
+  } else if (theme === "highland") {
+    stop1 = "#14532d";
+    stop2 = "#064e3b";
+  } else {
+    // tanjungpinang (chocolate theme)
+    stop1 = "#ebdcc6";
+    stop2 = "#dfcaa6";
+  }
+  
+  grad.appendChild(svgEl("stop", { offset: "0%", "stop-color": stop1 }));
+  grad.appendChild(svgEl("stop", { offset: "100%", "stop-color": stop2 }));
+  defs.appendChild(grad);
+}
+
+function generateThemeDecorations(graph, positions, theme) {
   const parks = [];
   const buildingClusters = [];
   const parkingLots = [];
   const staticCars = [];
   const streetTrees = [];
-  
-  const roadPoints = sampleRoadPoints(activeGraph, activeNodePositions, 25);
+  const streetlights = [];
+  const trafficSigns = [];
+  const sawahs = [];
+  const rocks = [];
+
+  const roadPoints = sampleRoadPoints(graph, positions, 25);
   const existing = [];
   const seen = new Set();
   
-  for (const [from, neighbors] of Object.entries(activeGraph)) {
+  // 1. Generate sawahs dynamically (Tema 3: Pedesaan ONLY - Tanjungpinang is now pure Maritime)
+  if (theme === "rural") {
+    const step = 145; // Optimized step to maintain beauty without DOM node bloat
+    const maxSawahs = 14;
+    let sawahCount = 0;
+    
+    for (let px = 120; px < VIEWBOX.w - 120 && sawahCount < maxSawahs; px += step) {
+      for (let py = 100; py < VIEWBOX.h - 100 && sawahCount < maxSawahs; py += step) {
+        const sw = 150 + (px % 30);
+        const sh = 100 + (py % 20);
+        const sawah = {
+          x: Math.round(px - sw/2),
+          y: Math.round(py - sh/2),
+          w: sw,
+          h: sh
+        };
+        
+        if (isClearForDecoration(sawah, roadPoints, existing, positions, 42, 50, 15)) {
+          sawahs.push(sawah);
+          existing.push(sawah);
+          sawahCount++;
+        }
+      }
+    }
+  }
+
+  // Generate rocks and boulders for Pesisir Pantai
+  if (theme === "coastal") {
+    const rockPoints = [
+      { x: 120, y: 180 }, { x: 130, y: 220 }, { x: 140, y: 260 },
+      { x: 1450, y: 130 }, { x: 1480, y: 160 }, { x: 1510, y: 200 },
+      { x: 1530, y: 240 }, { x: 80, y: 720 }, { x: 100, y: 750 },
+      { x: 1380, y: 780 }, { x: 1400, y: 810 }, { x: 1420, y: 840 }
+    ];
+    rockPoints.forEach(pt => {
+      rocks.push({ x: pt.x, y: pt.y, r: 5 + (pt.x % 6) });
+      existing.push({ x: pt.x - 10, y: pt.y - 10, w: 20, h: 20 });
+    });
+  }
+
+  // 2. Generate streetlights along all roads
+  const streetlightInterval = theme === "city" ? 70 : (theme === "rural" ? 180 : (theme === "coastal" ? 110 : (theme === "highland" ? 130 : 95)));
+  seen.clear();
+  for (const [from, neighbors] of Object.entries(graph)) {
+    for (const [to, weight] of Object.entries(neighbors)) {
+      const edgeKey = makeEdgeKey(from, to);
+      if (seen.has(edgeKey)) continue;
+      seen.add(edgeKey);
+
+      const { curve } = getPathAndCurveForEdge(from, to);
+      const estLength = pointDistance(curve.p1, curve.c) + pointDistance(curve.c, curve.p2);
+      const numLights = Math.max(1, Math.floor(estLength / streetlightInterval));
+      
+      for (let i = 1; i <= numLights; i++) {
+        const t = i / (numLights + 1);
+        const pt = pointOnCurve(curve, t);
+        
+        const nearNode = Object.values(positions).some(nodePos => pointDistance(pt, nodePos) < 55);
+        if (nearNode) continue;
+        
+        const tang = tangentOnCurve(curve, t);
+        const len = Math.sqrt(tang.x * tang.x + tang.y * tang.y) || 1;
+        const tx = tang.x / len;
+        const ty = tang.y / len;
+        
+        const side = i % 2 === 0 ? 1 : -1;
+        const nx = -ty * side;
+        const ny = tx * side;
+        
+        const offset = 22; 
+        const lx = pt.x + nx * offset;
+        const ly = pt.y + ny * offset;
+        
+        const rot = Math.atan2(-ny, -nx) * 180 / Math.PI;
+        
+        streetlights.push({ x: Math.round(lx), y: Math.round(ly), rot: Math.round(rot) });
+      }
+    }
+  }
+
+  // 3. Generate traffic signs & lights near intersections (SKIPPED in Pedesaan rural due to minim dana!)
+  if (theme !== "rural") {
+    for (const [node, neighbors] of Object.entries(graph)) {
+      const pos = positions[node];
+      const neighborKeys = Object.keys(neighbors);
+      const isMajor = neighborKeys.length >= 3;
+      
+      neighborKeys.forEach((nextNode, idx) => {
+        const { curve } = getPathAndCurveForEdge(node, nextNode);
+        const distFromNode = 42;
+        const t = distFromNode / (pointDistance(pos, positions[nextNode]) || 1);
+        const pt = pointOnCurve(curve, t);
+        
+        const tang = tangentOnCurve(curve, t);
+        const len = Math.sqrt(tang.x * tang.x + tang.y * tang.y) || 1;
+        const tx = tang.x / len;
+        const ty = tang.y / len;
+        
+        const nx = ty;
+        const ny = -tx;
+        
+        const sx = pt.x + nx * 22;
+        const sy = pt.y + ny * 22;
+        
+        let type = "speed";
+        let value = "50";
+        
+        if (isMajor && idx === 0) {
+          if (theme === "city") {
+            type = "light"; 
+          } else {
+            type = "stop";  
+          }
+        } else {
+          const hashVal = simpleHash(`${node}-${nextNode}`);
+          const choice = hashVal % 4;
+          if (choice === 0) {
+            type = "speed";
+            value = theme === "city" ? "80" : (theme === "rural" ? "30" : (theme === "coastal" ? "40" : "50"));
+          } else if (choice === 1) {
+            type = "warning";
+            value = "danger";
+          } else if (choice === 2) {
+            type = "turn";
+            value = "arrow";
+          } else {
+            return;
+          }
+        }
+        
+        trafficSigns.push({ x: Math.round(sx), y: Math.round(sy), type, value });
+      });
+    }
+  }
+
+  // 4. Generate traditional decorations (buildings, parking lots, trees)
+  seen.clear();
+  for (const [from, neighbors] of Object.entries(graph)) {
     for (const [to, weight] of Object.entries(neighbors)) {
       const edgeKey = makeEdgeKey(from, to);
       if (seen.has(edgeKey)) continue;
       seen.add(edgeKey);
       
       const { curve } = getPathAndCurveForEdge(from, to);
-      const tSamples = [0.16, 0.32, 0.48, 0.64, 0.80];
+      
+      let tSamples = [0.16, 0.32, 0.48, 0.64, 0.80];
+      if (theme === "rural") {
+        tSamples = [0.3, 0.6]; // Nature focused
+      } else if (theme === "city") {
+        tSamples = [0.15, 0.3, 0.45, 0.6, 0.75, 0.9]; // Optimized skyscraper grid
+      }
       
       for (const t of tSamples) {
         const pt = pointOnCurve(curve, t);
@@ -1006,155 +1186,584 @@ function generateRoadAlignedDecorations() {
           const cx = pt.x + nx * sideOffset;
           const cy = pt.y + ny * sideOffset;
           
-          const nearNode = Object.values(activeNodePositions).some(nodePos => {
+          const nearNode = Object.values(positions).some(nodePos => {
             return pointDistance({ x: cx, y: cy }, nodePos) < 62;
           });
           if (nearNode) continue;
           
           const overlaps = existing.some(other => {
+            if (other.w && other.h) {
+              return pointToRectDistance({ x: cx, y: cy }, other) < 32;
+            }
             return pointDistance({ x: cx, y: cy }, { x: other.x, y: other.y }) < 32;
           });
           if (overlaps) continue;
           
           const hashVal = simpleHash(`${Math.round(cx)}-${Math.round(cy)}`);
-          const choice = hashVal % 10;
           
-          if (choice < 6) {
-            const w = 24 + (hashVal % 10);
-            const h = 18 + ((hashVal >> 2) % 6);
-            const bldg = {
-              x: Math.round(cx),
-              y: Math.round(cy),
-              w,
-              h,
-              rot: Math.round(angle),
-              rx: 4
-            };
-            buildingClusters.push({ rects: [bldg] });
-            existing.push({ x: cx, y: cy });
-          } else if (choice < 8) {
-            const lot = {
-              x: Math.round(cx),
-              y: Math.round(cy),
-              w: 32,
-              h: 18,
-              rot: Math.round(angle),
-              slots: 3
-            };
-            parkingLots.push(lot);
-            existing.push({ x: cx, y: cy });
-            
-            if ((hashVal % 3) > 0) {
-              const carColors = ["#dc2626", "#eab308", "#2563eb", "#ffffff", "#7c3aed", "#0ea5e9"];
-              const carColor = carColors[hashVal % carColors.length];
-              const slotIdx = hashVal % 3;
-              const carOffset = (slotIdx - 1) * 9;
-              const carX = cx + tx * carOffset;
-              const carY = cy + ty * carOffset;
-              staticCars.push({
-                x: Math.round(carX),
-                y: Math.round(carY),
-                color: carColor,
-                rot: Math.round(angle)
-              });
+          if (theme === "city") {
+            const choice = hashVal % 10;
+            if (choice < 8) { 
+              const w = 26 + (hashVal % 12);
+              const h = 22 + ((hashVal >> 2) % 10);
+              buildingClusters.push({ rects: [{ x: Math.round(cx), y: Math.round(cy), w, h, rot: Math.round(angle), rx: 3 }] });
+              existing.push({ x: cx, y: cy });
+            } else {
+              const lot = { x: Math.round(cx), y: Math.round(cy), w: 32, h: 18, rot: Math.round(angle), slots: 3 };
+              parkingLots.push(lot);
+              existing.push({ x: cx, y: cy });
+              
+              if ((hashVal % 3) > 0) {
+                const carColors = ["#dc2626", "#eab308", "#2563eb", "#ffffff", "#7c3aed", "#0ea5e9"];
+                const carColor = carColors[hashVal % carColors.length];
+                const slotIdx = hashVal % 3;
+                const carOffset = (slotIdx - 1) * 9;
+                staticCars.push({
+                  x: Math.round(cx + tx * carOffset),
+                  y: Math.round(cy + ty * carOffset),
+                  color: carColor,
+                  rot: Math.round(angle)
+                });
+              }
             }
-          } else {
+          } else if (theme === "rural") {
+            const choice = hashVal % 10;
+            if (choice < 2) { 
+              const w = 18 + (hashVal % 6);
+              const h = 14 + ((hashVal >> 2) % 4);
+              buildingClusters.push({ rects: [{ x: Math.round(cx), y: Math.round(cy), w, h, rot: Math.round(angle), rx: 1 }] });
+              existing.push({ x: cx, y: cy });
+            } else {
+              streetTrees.push({ x: Math.round(cx), y: Math.round(cy) });
+              existing.push({ x: cx, y: cy });
+            }
+          } else if (theme === "coastal") {
+            const choice = hashVal % 10;
+            if (choice < 4) { 
+              const w = 22 + (hashVal % 8);
+              const h = 18 + ((hashVal >> 2) % 6);
+              buildingClusters.push({ rects: [{ x: Math.round(cx), y: Math.round(cy), w, h, rot: Math.round(angle), rx: 2 }] });
+              existing.push({ x: cx, y: cy });
+            } else {
+              streetTrees.push({ x: Math.round(cx), y: Math.round(cy) });
+              existing.push({ x: cx, y: cy });
+            }
+          } else if (theme === "highland") {
+            // Wilderness high-road: absolutely NO buildings or cottages! Pure pine stands.
             streetTrees.push({ x: Math.round(cx), y: Math.round(cy) });
             existing.push({ x: cx, y: cy });
+          } else {
+            // Tanjungpinang (balanced)
+            const choice = hashVal % 10;
+            if (choice < 6) {
+              const w = 24 + (hashVal % 10);
+              const h = 18 + ((hashVal >> 2) % 6);
+              buildingClusters.push({ rects: [{ x: Math.round(cx), y: Math.round(cy), w, h, rot: Math.round(angle), rx: 4 }] });
+              existing.push({ x: cx, y: cy });
+            } else if (choice < 8) {
+              const lot = { x: Math.round(cx), y: Math.round(cy), w: 32, h: 18, rot: Math.round(angle), slots: 3 };
+              parkingLots.push(lot);
+              existing.push({ x: cx, y: cy });
+              
+              if ((hashVal % 3) > 0) {
+                const carColors = ["#dc2626", "#eab308", "#2563eb", "#ffffff", "#7c3aed", "#0ea5e9"];
+                const carColor = carColors[hashVal % carColors.length];
+                const slotIdx = hashVal % 3;
+                const carOffset = (slotIdx - 1) * 9;
+                staticCars.push({
+                  x: Math.round(cx + tx * carOffset),
+                  y: Math.round(cy + ty * carOffset),
+                  color: carColor,
+                  rot: Math.round(angle)
+                });
+              }
+            } else {
+              streetTrees.push({ x: Math.round(cx), y: Math.round(cy) });
+              existing.push({ x: cx, y: cy });
+            }
           }
         }
       }
     }
   }
-  
-  for (let px = 200; px < VIEWBOX.w - 200; px += 240) {
-    for (let py = 180; py < VIEWBOX.h - 180; py += 180) {
-      let minDist = Infinity;
-      for (const pt of roadPoints) {
-        const d = pointDistance({ x: px, y: py }, pt);
-        if (d < minDist) minDist = d;
-      }
-      
-      if (minDist > 130) {
-        const nearNode = Object.values(activeNodePositions).some(nodePos => {
-          return pointDistance({ x: px, y: py }, nodePos) < 130;
-        });
-        if (!nearNode) {
-          const pw = 130 + (px % 40);
-          const ph = 85 + (py % 30);
-          parks.push({
-            x: px - pw/2,
-            y: py - ph/2,
-            w: pw,
-            h: ph,
-            rx: 18,
-            treeRows: 2,
-            treeCols: 4
-          });
+
+  // 95% DENSE METROPOLITAN JAKARTA EXTRA BUILDINGS FILLER
+  if (theme === "city") {
+    for (let px = 80; px < VIEWBOX.w - 80; px += 95) {
+      for (let py = 80; py < VIEWBOX.h - 80; py += 85) {
+        const w = 28 + (px % 16);
+        const h = 24 + (py % 12);
+        const rect = { x: px - w/2, y: py - h/2, w, h };
+        
+        // Tighter clearances for absolute maximum density in Jakarta
+        if (isClearForDecoration(rect, roadPoints, existing, positions, 36, 45, 10)) {
+          buildingClusters.push({ rects: [rect] });
+          existing.push(rect);
         }
       }
     }
   }
-  
-  const water = currentMapMode === "tanjungpinang"
-    ? [
-        { d: "M 1320 0 H 1600 V 170 C 1535 155 1485 165 1430 142 C 1380 118 1350 128 1320 100 Z" },
-        { d: "M 0 750 C 60 730 120 760 180 740 C 240 720 280 750 340 738 L 340 900 H 0 Z" }
-      ]
-    : [
-        { d: "M 1340 0 H 1600 V 160 C 1530 140 1480 150 1420 130 C 1370 110 1340 120 1310 90 Z" },
-        { d: "M 0 760 C 60 740 120 770 180 750 C 240 730 280 760 340 745 L 340 900 H 0 Z" }
-      ];
-      
+
+  // 5. Generate parks and dense forests in remaining open spaces
+  if (theme === "city" || theme === "tanjungpinang") {
+    const minParkDist = theme === "city" ? 140 : 130;
+    for (let px = 200; px < VIEWBOX.w - 200; px += 240) {
+      for (let py = 180; py < VIEWBOX.h - 180; py += 180) {
+        let minDist = Infinity;
+        for (const pt of roadPoints) {
+          const d = pointDistance({ x: px, y: py }, pt);
+          if (d < minDist) minDist = d;
+        }
+        
+        if (minDist > minParkDist) {
+          const nearNode = Object.values(positions).some(nodePos => {
+            return pointDistance({ x: px, y: py }, nodePos) < minParkDist;
+          });
+          if (!nearNode) {
+            const pw = 130 + (px % 40);
+            const ph = 85 + (py % 30);
+            const rect = { x: px - pw/2, y: py - ph/2, w: pw, h: ph };
+            
+            let overlaps = existing.some(other => {
+              if (other.w && other.h) return rectOverlapsRect(rect, other, 20);
+              return pointToRectDistance({ x: other.x, y: other.y }, rect) < 30;
+            });
+            
+            if (!overlaps) {
+              parks.push({
+                x: rect.x, y: rect.y, w: rect.w, h: rect.h, rx: 18,
+                treeRows: 2, treeCols: theme === "city" ? 3 : 4
+              });
+              existing.push(rect);
+            }
+          }
+        }
+      }
+    }
+  } else {
+    // Rural & Highland: massive forests filling remaining open pockets
+    const density = theme === "rural" ? 190 : 160;
+    for (let px = 180; px < VIEWBOX.w - 180; px += density) {
+      for (let py = 150; py < VIEWBOX.h - 150; py += (density - 30)) {
+        let minDist = Infinity;
+        for (const pt of roadPoints) {
+          const d = pointDistance({ x: px, y: py }, pt);
+          if (d < minDist) minDist = d;
+        }
+        
+        if (minDist > 110) {
+          const nearNode = Object.values(positions).some(nodePos => pointDistance({ x: px, y: py }, nodePos) < 110);
+          if (!nearNode) {
+            const numTrees = theme === "highland" ? 8 + (px % 6) : 5 + (px % 4);
+            for (let t = 0; t < numTrees; t++) {
+              const tx = px + randomBetween(-45, 45);
+              const ty = py + randomBetween(-45, 45);
+              
+              let roadDist = Infinity;
+              for (const pt of roadPoints) {
+                const d = pointDistance({ x: tx, y: ty }, pt);
+                if (d < roadDist) roadDist = d;
+              }
+              
+              let overlapsDecor = existing.some(other => {
+                if (other.w && other.h) return pointToRectDistance({ x: tx, y: ty }, other) < 24;
+                return false;
+              });
+              
+              if (roadDist > 42 && !overlapsDecor) {
+                streetTrees.push({ x: Math.round(tx), y: Math.round(ty) });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Inject Tanjungpinang default layouts if applicable
+  if (theme === "tanjungpinang" && currentMapMode === "tanjungpinang") {
+    buildingClusters.push(...defaultDecorations.buildingClusters);
+    parkingLots.push(...defaultDecorations.parkingLots);
+    staticCars.push(...defaultDecorations.staticCars);
+    parks.push(...defaultDecorations.parks);
+  }
+
   const zones = [
     { x: 90, y: 90, w: 320, h: 220, rx: 24 },
     { x: 600, y: 120, w: 350, h: 200, rx: 24 },
     { x: 1050, y: 440, w: 340, h: 220, rx: 24 },
     { x: 220, y: 620, w: 380, h: 140, rx: 24 }
   ];
-  
+
   return {
-    water,
     zones,
     parks,
     buildingClusters,
     parkingLots,
     staticCars,
-    streetTrees
+    streetTrees,
+    streetlights,
+    trafficSigns,
+    sawahs,
+    rocks
   };
 }
 
+function drawCoastalPalm(x, y) {
+  const group = svgEl("g", { transform: `translate(${x}, ${y})` });
+  // Curved trunk
+  group.appendChild(svgEl("path", {
+    d: "M 0 0 Q -3 -12, -4 -24",
+    fill: "none",
+    stroke: "#7c2d12",
+    "stroke-width": 2.2,
+    "stroke-linecap": "round"
+  }));
+  
+  // Palm leaves fronds
+  const px = -4, py = -24;
+  const leaves = [
+    `M ${px} ${py} Q ${px-8} ${py-4}, ${px-12} ${py+2}`,
+    `M ${px} ${py} Q ${px+8} ${py-4}, ${px+12} ${py+2}`,
+    `M ${px} ${py} Q ${px-2} ${py-10}, ${px-4} ${py-14}`,
+    `M ${px} ${py} Q ${px-10} ${py-10}, ${px-14} ${py-8}`,
+    `M ${px} ${py} Q ${px+10} ${py-10}, ${px+14} ${py-8}`
+  ];
+  
+  leaves.forEach(d => {
+    group.appendChild(svgEl("path", {
+      d, fill: "none", stroke: "#059669", "stroke-width": 1.6, "stroke-linecap": "round"
+    }));
+  });
+  
+  layerTrees.appendChild(group);
+}
+
+function drawPineTree(x, y) {
+  const group = svgEl("g", { transform: `translate(${x}, ${y})` });
+  // Trunk
+  group.appendChild(svgEl("rect", {
+    x: -1, y: -4, width: 2, height: 4, fill: "#451a03"
+  }));
+  // Three tiered triangles for needles
+  group.appendChild(svgEl("polygon", {
+    points: "0,-15 -6,-8 6,-8",
+    fill: "#064e3b"
+  }));
+  group.appendChild(svgEl("polygon", {
+    points: "0,-10 -8,-3 8,-3",
+    fill: "#047857"
+  }));
+  group.appendChild(svgEl("polygon", {
+    points: "0,-5 -10,2 10,2",
+    fill: "#059669"
+  }));
+  layerTrees.appendChild(group);
+}
+
+function drawMountain(x, y, w, h) {
+  const peakX = x + w / 2;
+  const peakY = y - h;
+  
+  // Mountain shadow side (back face)
+  layerWater.appendChild(svgEl("polygon", {
+    points: `${x},${y} ${peakX},${peakY} ${peakX},${y}`,
+    fill: "rgba(0, 0, 0, 0.25)"
+  }));
+  
+  // Mountain light side (front face)
+  layerWater.appendChild(svgEl("polygon", {
+    points: `${peakX},${peakY} ${peakX},${y} ${x + w},${y}`,
+    fill: "rgba(255, 255, 255, 0.04)"
+  }));
+
+  // Mountain main outline
+  layerWater.appendChild(svgEl("polygon", {
+    points: `${x},${y} ${peakX},${peakY} ${x + w},${y}`,
+    fill: "rgba(20, 35, 28, 0.85)",
+    stroke: "rgba(255, 255, 255, 0.14)",
+    "stroke-width": 1.5,
+    "stroke-linejoin": "round"
+  }));
+  
+  // Snowcap on peak
+  const capH = h * 0.28;
+  const capW = w * 0.28;
+  const capY = peakY + capH;
+  const capLX = peakX - capW / 2;
+  const capRX = peakX + capW / 2;
+  
+  layerWater.appendChild(svgEl("polygon", {
+    points: `${peakX},${peakY} ${capLX},${capY} ${peakX},${peakY + capH * 0.6} ${capRX},${capY}`,
+    fill: "#f8fafc",
+    opacity: 0.9
+  }));
+}
+
+function drawSawah(sawah) {
+  layerSawah.appendChild(svgEl("rect", {
+    x: sawah.x, y: sawah.y, width: sawah.w, height: sawah.h, rx: 6, class: "sawah-fill"
+  }));
+  
+  const cols = 3;
+  const rows = 2;
+  const stepX = sawah.w / cols;
+  const stepY = sawah.h / rows;
+  
+  for (let i = 1; i < cols; i++) {
+    const sx = sawah.x + i * stepX;
+    layerSawah.appendChild(svgEl("line", {
+      x1: sx, y1: sawah.y, x2: sx, y2: sawah.y + sawah.h, class: "sawah-border"
+    }));
+  }
+  for (let j = 1; j < rows; j++) {
+    const sy = sawah.y + j * stepY;
+    layerSawah.appendChild(svgEl("line", {
+      x1: sawah.x, y1: sy, x2: sawah.x + sawah.w, y2: sy, class: "sawah-border"
+    }));
+  }
+  
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const startX = sawah.x + c * stepX;
+      const startY = sawah.y + r * stepY;
+      
+      const plantPositions = [
+        { dx: stepX * 0.3, dy: stepY * 0.3 },
+        { dx: stepX * 0.7, dy: stepY * 0.4 },
+        { dx: stepX * 0.4, dy: stepY * 0.7 }
+      ];
+      
+      plantPositions.forEach(pos => {
+        const px = startX + pos.dx;
+        const py = startY + pos.dy;
+        
+        const stalk = svgEl("path", {
+          d: `M ${px-2} ${py} L ${px-1} ${py-5} M ${px} ${py} L ${px} ${py-7} M ${px+2} ${py} L ${px+1} ${py-5}`,
+          class: "sawah-plant"
+        });
+        layerSawah.appendChild(stalk);
+      });
+    }
+  }
+}
+
+function drawStreetlight(light) {
+  const group = svgEl("g", {
+    transform: `translate(${light.x}, ${light.y}) rotate(${light.rot})`
+  });
+  
+  group.appendChild(svgEl("circle", { cx: 0, cy: 0, r: 1.8, class: "light-base" }));
+  group.appendChild(svgEl("line", { x1: 0, y1: 0, x2: 15, y2: 0, class: "light-pole" }));
+  group.appendChild(svgEl("circle", { cx: 15, cy: 0, r: 2.8, class: "light-head" }));
+  group.appendChild(svgEl("circle", { cx: 15, cy: 0, r: 1.2, fill: "#fef08a" }));
+  
+  const glowRadius = currentMapTheme === "city" ? 28 : 22;
+  const glowOpacity = currentMapTheme === "city" ? 0.22 : 0.16;
+  group.appendChild(svgEl("circle", {
+    cx: 15, cy: 0, r: glowRadius, class: "light-glow", opacity: glowOpacity
+  }));
+  
+  layerStreetlights.appendChild(group);
+}
+
+function drawTrafficSign(sign) {
+  const group = svgEl("g", {
+    transform: `translate(${sign.x}, ${sign.y})`
+  });
+  
+  group.appendChild(svgEl("circle", { cx: 0, cy: 0, r: 1, class: "sign-base" }));
+  group.appendChild(svgEl("line", { x1: 0, y1: 0, x2: 0, y2: -6, class: "sign-post" }));
+  
+  const cy = -6;
+  
+  if (sign.type === "stop") {
+    group.appendChild(svgEl("polygon", {
+      points: `-5.5,${cy-2.3} -2.3,${cy-5.5} 2.3,${cy-5.5} 5.5,${cy-2.3} 5.5,${cy+2.3} 2.3,${cy+5.5} -2.3,${cy+5.5} -5.5,${cy+2.3}`,
+      class: "sign-stop-face"
+    }));
+    addText(group, 0, cy, "STOP", "sign-stop-text");
+  } else if (sign.type === "speed") {
+    group.appendChild(svgEl("circle", { cx: 0, cy: cy, r: 5, class: "sign-speed-border" }));
+    group.appendChild(svgEl("circle", { cx: 0, cy: cy, r: 4, class: "sign-speed-face" }));
+    addText(group, 0, cy, sign.value, "sign-speed-text");
+  } else if (sign.type === "warning") {
+    group.appendChild(svgEl("polygon", {
+      points: `0,${cy-6} -6,${cy+4.5} 6,${cy+4.5}`,
+      class: "sign-warn-face"
+    }));
+    addText(group, 0, cy + 1.8, "!", "sign-warn-text");
+  } else if (sign.type === "turn") {
+    group.appendChild(svgEl("circle", { cx: 0, cy: cy, r: 5, class: "sign-turn-face" }));
+    group.appendChild(svgEl("path", {
+      d: `M -2.2 ${cy} L 1.5 ${cy} M 0 ${cy-1.8} L 1.8 ${cy} L 0 ${cy+1.8}`,
+      class: "sign-turn-arrow"
+    }));
+  } else if (sign.type === "light") {
+    group.appendChild(svgEl("rect", {
+      x: -3, y: cy-6, width: 6, height: 12, rx: 1, class: "traffic-light-body"
+    }));
+    group.appendChild(svgEl("circle", { cx: 0, cy: cy-3.5, r: 1.2, fill: "#ef4444" })); 
+    group.appendChild(svgEl("circle", { cx: 0, cy: cy, r: 1.2, fill: "#f59e0b" }));    
+    group.appendChild(svgEl("circle", { cx: 0, cy: cy+3.5, r: 1.2, fill: "#10b981" })); 
+  }
+  
+  layerTrafficSigns.appendChild(group);
+}
+
 function renderDecorations() {
+  // Dynamically update bottom legend items based on the active theme
+  const legSawah = document.getElementById("leg-sawah");
+  const legWater = document.getElementById("leg-water");
+  const legLight = document.getElementById("leg-light");
+  const legSign = document.getElementById("leg-sign");
+  const legBldg = document.getElementById("leg-bldg");
+  const legPark = document.getElementById("leg-park");
+  const legMountain = document.getElementById("leg-mountain");
+  const legPine = document.getElementById("leg-pine");
+  const legPalm = document.getElementById("leg-palm");
+
+  if (legSawah) legSawah.style.display = (currentMapTheme === "rural") ? "inline-flex" : "none";
+  if (legWater) legWater.style.display = (["tanjungpinang", "rural", "coastal"].includes(currentMapTheme)) ? "inline-flex" : "none";
+  if (legLight) legLight.style.display = "inline-flex"; 
+  if (legSign) legSign.style.display = (currentMapTheme !== "rural") ? "inline-flex" : "none";
+  if (legBldg) legBldg.style.display = (currentMapTheme !== "highland") ? "inline-flex" : "none";
+  if (legPark) legPark.style.display = (["city", "tanjungpinang"].includes(currentMapTheme)) ? "inline-flex" : "none";
+  if (legMountain) legMountain.style.display = (currentMapTheme === "highland") ? "inline-flex" : "none";
+  if (legPine) legPine.style.display = (currentMapTheme === "highland") ? "inline-flex" : "none";
+  if (legPalm) legPalm.style.display = (currentMapTheme === "coastal") ? "inline-flex" : "none";
+
   clearLayer(layerBase);
   clearLayer(layerWater);
   clearLayer(layerZones);
   clearLayer(layerParks);
+  clearLayer(layerSawah);
   clearLayer(layerTrees);
   clearLayer(layerBuildings);
   clearLayer(layerParking);
+  clearLayer(layerStreetlights);
+  clearLayer(layerTrafficSigns);
 
+  // Update background gradient in defs
+  updateMapBgGradient(currentMapTheme);
+
+  // Land background
   layerBase.appendChild(svgEl("rect", {
-    x: 0, y: 0, width: VIEWBOX.w, height: VIEWBOX.h, class: "land-fill"
+    x: 0, y: 0, width: VIEWBOX.w, height: VIEWBOX.h, fill: "url(#mapBgGradient)"
   }));
 
-  const gridGroup = svgEl("g", { opacity: 0.05 });
+  const gridGroup = svgEl("g", { opacity: 0.04 });
   for (let gx = 100; gx < VIEWBOX.w; gx += 200) {
-    gridGroup.appendChild(svgEl("line", { x1: gx, y1: 0, x2: gx, y2: VIEWBOX.h, stroke: "#6b7280", "stroke-width": 1 }));
+    gridGroup.appendChild(svgEl("line", { x1: gx, y1: 0, x2: gx, y2: VIEWBOX.h, stroke: "#8b7d72", "stroke-width": 0.8 }));
   }
   for (let gy = 100; gy < VIEWBOX.h; gy += 200) {
-    gridGroup.appendChild(svgEl("line", { x1: 0, y1: gy, x2: VIEWBOX.w, y2: gy, stroke: "#6b7280", "stroke-width": 1 }));
+    gridGroup.appendChild(svgEl("line", { x1: 0, y1: gy, x2: VIEWBOX.w, y2: gy, stroke: "#8b7d72", "stroke-width": 0.8 }));
   }
   layerBase.appendChild(gridGroup);
 
-  for (const water of activeDecorations.water || []) {
-    layerWater.appendChild(svgEl("path", { d: water.d, class: "sea-fill" }));
-    layerWater.appendChild(svgEl("path", { d: water.d, class: "water-edge" }));
+  // DYNAMIC WATER FEATURES RENDERER
+  if (currentMapTheme === "rural") {
+    // Pedesaan: 2 Winding Rivers flowing across the countryside
+    // River 1: vertical-winding
+    const river1 = svgEl("path", {
+      d: "M 520 0 Q 480 200, 560 450 T 490 900",
+      fill: "none", stroke: "var(--water)", "stroke-width": 18, "stroke-linecap": "round", "stroke-linejoin": "round"
+    });
+    const river1Inner = svgEl("path", {
+      d: "M 520 0 Q 480 200, 560 450 T 490 900",
+      fill: "none", stroke: "#67e8f9", "stroke-width": 8, "stroke-linecap": "round", "stroke-linejoin": "round", opacity: 0.6
+    });
+    // River 2: horizontal-winding
+    const river2 = svgEl("path", {
+      d: "M 0 470 Q 380 495, 780 440 T 1600 480",
+      fill: "none", stroke: "var(--water)", "stroke-width": 18, "stroke-linecap": "round", "stroke-linejoin": "round"
+    });
+    const river2Inner = svgEl("path", {
+      d: "M 0 470 Q 380 495, 780 440 T 1600 480",
+      fill: "none", stroke: "#67e8f9", "stroke-width": 8, "stroke-linecap": "round", "stroke-linejoin": "round", opacity: 0.6
+    });
+    layerWater.appendChild(river1);
+    layerWater.appendChild(river1Inner);
+    layerWater.appendChild(river2);
+    layerWater.appendChild(river2Inner);
+  } else if (currentMapTheme === "tanjungpinang") {
+    // Maritime Tanjungpinang: Sea bays at left borders representing maritime geography
+    const seaBay1 = svgEl("path", {
+      d: "M 0 0 L 170 0 C 130 160, 90 280, 0 350 Z",
+      fill: "var(--water)"
+    });
+    const seaBay2 = svgEl("path", {
+      d: "M 0 680 C 180 680, 240 760, 240 900 L 0 900 Z",
+      fill: "var(--water)"
+    });
+    const shore1 = svgEl("path", {
+      d: "M 170 0 C 130 160, 90 280, 0 350",
+      fill: "none", stroke: "#fbcfe8", "stroke-width": 4, opacity: 0.4
+    });
+    const shore2 = svgEl("path", {
+      d: "M 0 680 C 180 680, 240 760, 240 900",
+      fill: "none", stroke: "#fbcfe8", "stroke-width": 4, opacity: 0.4
+    });
+    layerWater.appendChild(seaBay1);
+    layerWater.appendChild(seaBay2);
+    layerWater.appendChild(shore1);
+    layerWater.appendChild(shore2);
+  } else if (currentMapTheme === "coastal") {
+    // Massive surrounding oceans for Pesisir Pantai
+    const oceanLeft = svgEl("path", {
+      d: "M 0 0 L 180 0 Q 120 450, 180 900 L 0 900 Z",
+      fill: "var(--water)"
+    });
+    const oceanRight = svgEl("path", {
+      d: "M 1420 0 L 1600 0 L 1600 900 L 1420 900 Q 1480 450, 1420 0 Z",
+      fill: "var(--water)"
+    });
+    const shoreL = svgEl("path", {
+      d: "M 180 0 Q 120 450, 180 900",
+      fill: "none", stroke: "#fef08a", "stroke-width": 8, opacity: 0.7
+    });
+    const shoreR = svgEl("path", {
+      d: "M 1420 900 Q 1480 450, 1420 0",
+      fill: "none", stroke: "#fef08a", "stroke-width": 8, opacity: 0.7
+    });
+    layerWater.appendChild(oceanLeft);
+    layerWater.appendChild(oceanRight);
+    layerWater.appendChild(shoreL);
+    layerWater.appendChild(shoreR);
+  } else if (currentMapTheme === "highland") {
+    // Majestic Pine Highlands: mountain peak outlines at borders/sides safely away from roads
+    // Top-Left Corner & Top boundary pockets
+    drawMountain(-30, 130, 200, 120);
+    drawMountain(130, 120, 150, 90);
+    drawMountain(600, 110, 200, 100);
+    drawMountain(800, 110, 180, 80);
+    
+    // Top-Right Corner pocket
+    drawMountain(1380, 150, 240, 140);
+    drawMountain(1250, 120, 160, 100);
+    
+    // Bottom-Left Corner pocket (below the J node loop)
+    drawMountain(-20, 900, 240, 150);
+    drawMountain(170, 900, 180, 110);
+    
+    // Middle Center empty loop pocket (enclosed inside the road system loop)
+    drawMountain(650, 560, 180, 110);
+    drawMountain(780, 540, 150, 80);
+    
+    // Bottom-Right Corner pocket (below the F node loop)
+    drawMountain(1220, 900, 260, 160);
+    drawMountain(1440, 900, 180, 110);
   }
 
   for (const zone of activeDecorations.zones || []) {
     layerZones.appendChild(svgEl("rect", {
       x: zone.x, y: zone.y, width: zone.w, height: zone.h, rx: zone.rx || 24, class: "zone-fill"
     }));
+  }
+
+  // Draw sawah
+  for (const sawah of activeDecorations.sawahs || []) {
+    drawSawah(sawah);
   }
 
   for (const park of activeDecorations.parks || []) {
@@ -1171,13 +1780,37 @@ function renderDecorations() {
     }
   }
   
+  // Draw trees and palm trees depending on theme
   for (const tree of activeDecorations.streetTrees || []) {
+    if (currentMapTheme === "coastal") {
+      drawCoastalPalm(tree.x, tree.y);
+    } else if (currentMapTheme === "highland") {
+      drawPineTree(tree.x, tree.y);
+    } else {
+      layerTrees.appendChild(svgEl("circle", {
+        cx: tree.x, cy: tree.y, r: 2.2, class: "tree-trunk"
+      }));
+      layerTrees.appendChild(svgEl("circle", {
+        cx: tree.x, cy: tree.y, r: 8.5, class: "tree-crown"
+      }));
+    }
+  }
+
+  // Draw boulders/rocks
+  for (const rock of activeDecorations.rocks || []) {
     layerTrees.appendChild(svgEl("circle", {
-      cx: tree.x, cy: tree.y, r: 2.2, class: "tree-trunk"
+      cx: rock.x, cy: rock.y, r: rock.r, class: "coastal-rock"
     }));
-    layerTrees.appendChild(svgEl("circle", {
-      cx: tree.x, cy: tree.y, r: 8.5, class: "tree-crown"
-    }));
+  }
+
+  // Draw streetlights
+  for (const light of activeDecorations.streetlights || []) {
+    drawStreetlight(light);
+  }
+
+  // Draw traffic signs
+  for (const sign of activeDecorations.trafficSigns || []) {
+    drawTrafficSign(sign);
   }
 }
 
@@ -1196,12 +1829,16 @@ function drawPark(park) {
       const cx = round1(park.x + stepX * col);
       const cy = round1(park.y + stepY * row);
       
-      layerTrees.appendChild(svgEl("circle", {
-        cx, cy, r: 2.2, class: "tree-trunk"
-      }));
-      layerTrees.appendChild(svgEl("circle", {
-        cx, cy, r: 8.5, class: "tree-crown"
-      }));
+      if (currentMapTheme === "coastal") {
+        drawCoastalPalm(cx, cy);
+      } else {
+        layerTrees.appendChild(svgEl("circle", {
+          cx, cy, r: 2.2, class: "tree-trunk"
+        }));
+        layerTrees.appendChild(svgEl("circle", {
+          cx, cy, r: 8.5, class: "tree-crown"
+        }));
+      }
     }
   }
 }
@@ -1537,7 +2174,7 @@ function loadDefaultMap() {
   currentMapMode = "tanjungpinang";
 
   rebuildEdgeGeometryCache();
-  activeDecorations = generateRoadAlignedDecorations();
+  activeDecorations = generateThemeDecorations(activeGraph, activeNodePositions, currentMapTheme);
 
   renderFullMap();
   populateDropdowns("A", "D");
@@ -1691,6 +2328,22 @@ function updateMotionButtons() {
 ===================================================== */
 
 function bindEvents() {
+  const toggleInfoBtn = $("toggleInfoBtn");
+  const panelInfo = $("panelInfo");
+  if (toggleInfoBtn && panelInfo) {
+    toggleInfoBtn.addEventListener("click", () => {
+      panelInfo.classList.toggle("collapsed");
+    });
+  }
+
+  const toggleRouteBtn = $("toggleRouteBtn");
+  const panelRoute = $("panelRoute");
+  if (toggleRouteBtn && panelRoute) {
+    toggleRouteBtn.addEventListener("click", () => {
+      panelRoute.classList.toggle("collapsed");
+    });
+  }
+
   findRouteBtn.addEventListener("click", () => {
     calculateAndShowRoute(startSelect.value, endSelect.value, `${mapStatusLabel()} / Rute siap`);
   });
@@ -1723,8 +2376,28 @@ function bindEvents() {
   });
 
   restoreMapBtn.addEventListener("click", () => {
+    const tSelect = $("themeSelect");
+    if (tSelect) tSelect.value = "tanjungpinang";
+    currentMapTheme = "tanjungpinang";
+    document.body.setAttribute("data-theme", "tanjungpinang");
     loadDefaultMap();
   });
+
+  const tSelect = $("themeSelect");
+  if (tSelect) {
+    tSelect.addEventListener("change", () => {
+      currentMapTheme = tSelect.value;
+      document.body.setAttribute("data-theme", currentMapTheme);
+      stopAnimation(true);
+      activeDecorations = generateThemeDecorations(activeGraph, activeNodePositions, currentMapTheme);
+      renderFullMap();
+      if (currentPath && currentPath.length > 1) {
+        calculateAndShowRoute(startSelect.value, endSelect.value, `${mapStatusLabel()} / Tema diubah`);
+      } else {
+        calculateAndShowRoute("A", "D", `${mapStatusLabel()} / Tema diubah`);
+      }
+    });
+  }
 
   playBtn.addEventListener("click", () => {
     startAnimation(true);
@@ -1761,6 +2434,7 @@ function bindEvents() {
 ===================================================== */
 
 function init() {
+  document.body.setAttribute("data-theme", "tanjungpinang");
   bindEvents();
   loadDefaultMap();
 
@@ -1810,12 +2484,19 @@ function smoothZoom(targetScale) {
   const startTime = performance.now();
   const duration = 180;
 
+  const centerX = 800; // Titik tengah dalam koordinat viewBox 1600x900
+  const centerY = 450;
+  const worldX = (centerX - camX) / startScale;
+  const worldY = (centerY - camY) / startScale;
+
   function animate(now) {
     const elapsed = now - startTime;
     const t = clamp(elapsed / duration, 0, 1);
     const eased = 1 - Math.pow(1 - t, 3);
 
     camScale = startScale + (targetScale - startScale) * eased;
+    camX = centerX - worldX * camScale;
+    camY = centerY - worldY * camScale;
     applyCamera();
 
     if (t < 1) {
@@ -1845,25 +2526,27 @@ function zoomOut() {
 ===================================================== */
 
 function fitMap() {
-  const mapStageEl = $("mapStage");
-  if (!mapStageEl) return;
+  const positions = Object.values(activeNodePositions);
+  if (!positions.length) return;
 
-  const vw = mapStageEl.clientWidth;
-  const vh = mapStageEl.clientHeight;
+  const xs = positions.map(p => p.x);
+  const ys = positions.map(p => p.y);
+  const minX = Math.min(...xs) - 150;
+  const minY = Math.min(...ys) - 130;
+  const maxX = Math.max(...xs) + 150;
+  const maxY = Math.max(...ys) + 130;
+  const mapW = maxX - minX;
+  const mapH = maxY - minY;
 
-  // Ukuran map dasar sesuai dengan viewBox pada index.html
-  const mapWidth = 1600;
-  const mapHeight = 900;
+  const viewportW = 1600; // Selalu gunakan ukuran viewBox konstan agar presisi di semua resolusi screen
+  const viewportH = 900;
 
-  // Diturunkan ke 0.78 agar peta mengecil sedikit dan tidak tertutup panel/legenda
-  const scale = Math.min(vw / mapWidth, vh / mapHeight) * 0.78;
-  camScale = scale;
+  const scale = Math.min(viewportW / mapW, viewportH / mapH) * 0.85;
+  camScale = clamp(scale, 0.5, 1.3);
 
-  // Kunci koordinat di tengah viewport
-  camX = (vw / 2) - (mapWidth * scale / 2);
-  
-  // Ditambahkan +25 agar posisi peta turun sedikit, mengompensasi topbar di atas
-  camY = (vh / 2) - (mapHeight * scale / 2) + 25;
+  // Pusatkan peta tepat di tengah-tengah ruang koordinat viewBox 1600x900
+  camX = (viewportW - mapW * camScale) / 2 - minX * camScale;
+  camY = (viewportH - mapH * camScale) / 2 - minY * camScale + 20; // Mengompensasi topbar melayang di bagian atas
 
   applyCamera();
 }
@@ -1890,8 +2573,13 @@ function movePan(event) {
   const dx = event.clientX - dragStartX;
   const dy = event.clientY - dragStartY;
 
-  camX = camStartX + dx;
-  camY = camStartY + dy;
+  const rect = svg.getBoundingClientRect();
+  const screenToViewBoxX = 1600 / rect.width;
+  const screenToViewBoxY = 900 / rect.height;
+
+  // Konversikan drag mouse dari koordinat layar (pixels) ke unit viewBox SVG agar pergeseran 1:1 presisi
+  camX = camStartX + dx * screenToViewBoxX;
+  camY = camStartY + dy * screenToViewBoxY;
 
   applyCamera();
 }
@@ -1916,8 +2604,10 @@ window.addEventListener("mouseup", endPan);
 svg.addEventListener("wheel", event => {
   event.preventDefault();
   const rect = svg.getBoundingClientRect();
-  const mouseX = event.clientX - rect.left;
-  const mouseY = event.clientY - rect.top;
+  
+  // Konversikan posisi kursor mouse dari koordinat layar (pixels) ke unit viewBox SVG sebelum memproses titik zoom
+  const mouseX = (event.clientX - rect.left) * (1600 / rect.width);
+  const mouseY = (event.clientY - rect.top) * (900 / rect.height);
 
   const zoomFactor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
   zoomAtPoint(zoomFactor, mouseX, mouseY);

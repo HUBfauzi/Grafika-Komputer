@@ -80,12 +80,128 @@ button, select { font: inherit; }
 .panel-sub { color: var(--muted); font-size: 10.5px; font-weight: 700; text-align: right; }
 .panel-dist-badge { display: inline-flex; align-items: center; padding: 2px 10px; background: linear-gradient(135deg,#dbeafe,#eff6ff); color: var(--primary); font-size: 11px; font-weight: 800; border-radius: 999px; border: 1px solid #bfdbfe; }
 
-#panelRoute { top: 82px; left: 16px; width: 278px; }
+#panelRoute {
+  position: absolute;
+  top: 82px;
+  left: 16px;
+  width: 278px;
+  overflow: visible;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity var(--ease);
+}
+
+#panelRoute.collapsed {
+  transform: translateX(calc(-100% - 16px + 40px));
+}
+
+.toggle-sidebar-btn-left {
+  position: absolute;
+  right: -32px;
+  top: 12px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 4px 4px 12px rgba(15,23,42,0.08);
+  z-index: 10;
+  transition: background var(--ease), color var(--ease), transform 0.3s ease;
+}
+
+.toggle-sidebar-btn-left:hover {
+  background: #cbd5e1;
+  color: var(--ink);
+}
+
+#panelRoute.collapsed .toggle-sidebar-btn-left {
+  transform: rotate(180deg);
+  border-left: 1px solid var(--border);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  right: auto;
+  left: calc(100% - 12px);
+}
 #panelMotion { left: 16px; bottom: 18px; width: 290px; }
-#panelInfo { right: 16px; bottom: 18px; width: 320px; max-height: min(48vh,300px); overflow: auto; }
-#panelInfo::-webkit-scrollbar { width: 4px; }
-#panelInfo::-webkit-scrollbar-track { background: transparent; }
-#panelInfo::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+#panelInfo {
+  position: absolute;
+  right: 16px;
+  bottom: 18px;
+  width: 320px;
+  max-height: min(78vh, 440px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity var(--ease);
+}
+#panelInfo .panel-body {
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 4px;
+}
+#panelInfo .panel-body::-webkit-scrollbar {
+  width: 4px;
+}
+#panelInfo .panel-body::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 999px;
+}
+
+#panelInfo.collapsed {
+  transform: translateX(calc(100% + 16px - 40px));
+}
+
+.toggle-sidebar-btn {
+  position: absolute;
+  left: -32px;
+  top: 12px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: -4px 4px 12px rgba(15,23,42,0.08);
+  z-index: 10;
+  transition: background var(--ease), color var(--ease), transform 0.3s ease;
+}
+
+.toggle-sidebar-btn:hover {
+  background: #cbd5e1;
+  color: var(--ink);
+}
+
+#panelInfo.collapsed .toggle-sidebar-btn {
+  transform: rotate(180deg);
+  border-right: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  left: auto;
+  right: calc(100% - 12px);
+}
+
+.panel-body {
+  overflow-y: auto;
+  max-height: 230px;
+  padding-right: 4px;
+}
+
+.panel-body::-webkit-scrollbar { width: 4px; }
+.panel-body::-webkit-scrollbar-track { background: transparent; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
 
 /* ---- ELEMEN FORMULIR ---- */
 .form-row + .form-row { margin-top: 8px; }
@@ -140,6 +256,14 @@ button:active { transform: translateY(1px); }
 .swatch { width: 14px; height: 10px; border-radius: 3px; }
 .swatch-bldg { background: var(--building); border: 1px solid #b69a76; }
 .swatch-park { background: var(--park); border: 1px solid #74c69d; }
+.swatch-sawah { background: #84cc16; border: 1px solid #65a30d; }
+.swatch-water { background: #0ea5e9; border: 1px solid #0284c7; }
+.dot-light { background: #fef08a; border: 1px solid #eab308; box-shadow: 0 0 4px #fef08a; }
+.dot-sign { background: #ef4444; border: 1px solid #b91c1c; }
+.swatch-mountain { background: linear-gradient(to top, #14231c 50%, #ffffff 50%); border: 1px solid rgba(255,255,255,0.4); }
+.swatch-pine { background: #059669; border: 1px solid #064e3b; }
+.swatch-palm { background: #059669; border: 1px solid #7c2d12; }
+.coastal-rock { fill: #64748b; stroke: #475569; stroke-width: 1.2; }
 
 /* ---- MODE FOKUS KENDARAAN ---- */
 body.is-tracking #topbar { min-height: 44px; padding-top: 7px; padding-bottom: 7px; }
@@ -242,3 +366,245 @@ body.is-tracking #trackingHud { opacity: 1; pointer-events: auto; transform: tra
   #legend { display: none; }
   .panel { padding: 10px; }
 }
+
+/* =====================================================
+   SISTEM TEMA DINAMIS & ELEMEN TAMBAHAN (REAL LIFE FEATURES)
+   ===================================================== */
+
+/* --- Sawah / Rice Fields --- */
+.sawah-fill {
+  fill: #a3e635;
+  stroke: #84cc16;
+  stroke-width: 1.2px;
+  fill-opacity: 0.85;
+}
+.sawah-border {
+  stroke: #854d0e;
+  stroke-width: 0.8px;
+  opacity: 0.35;
+  stroke-dasharray: 2 1;
+}
+.sawah-plant {
+  stroke: #15803d;
+  stroke-width: 0.8px;
+  fill: none;
+  stroke-linecap: round;
+  opacity: 0.9;
+}
+
+/* --- Lampu Jalan (Street Lights) --- */
+.light-base {
+  fill: #334155;
+  stroke: #1e293b;
+  stroke-width: 0.5px;
+}
+.light-pole {
+  stroke: #475569;
+  stroke-width: 1.8px;
+  stroke-linecap: round;
+}
+.light-head {
+  fill: #f8fafc;
+  stroke: #334155;
+  stroke-width: 0.8px;
+}
+.light-glow {
+  fill: #fef08a;
+  filter: blur(2px);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+/* --- Rambu-Rambu Lalu Lintas (Traffic Signs) --- */
+.sign-base {
+  fill: #334155;
+}
+.sign-post {
+  stroke: #475569;
+  stroke-width: 1.2px;
+  stroke-linecap: round;
+}
+.sign-stop-face {
+  fill: #dc2626;
+  stroke: #ffffff;
+  stroke-width: 0.6px;
+}
+.sign-stop-text {
+  fill: #ffffff;
+  font-size: 2.8px;
+  font-weight: 900;
+  font-family: system-ui, -apple-system, sans-serif;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.sign-speed-border {
+  fill: #dc2626;
+}
+.sign-speed-face {
+  fill: #ffffff;
+}
+.sign-speed-text {
+  fill: #000000;
+  font-size: 3.2px;
+  font-weight: 850;
+  font-family: system-ui, -apple-system, sans-serif;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.sign-warn-face {
+  fill: #fbbf24;
+  stroke: #1e293b;
+  stroke-width: 0.6px;
+}
+.sign-warn-text {
+  fill: #000000;
+  font-size: 4px;
+  font-weight: 900;
+  font-family: system-ui, -apple-system, sans-serif;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.sign-turn-face {
+  fill: #2563eb;
+  stroke: #ffffff;
+  stroke-width: 0.6px;
+}
+.sign-turn-arrow {
+  stroke: #ffffff;
+  stroke-width: 0.8px;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.traffic-light-body {
+  fill: #1e293b;
+  stroke: #334155;
+  stroke-width: 0.5px;
+}
+
+/* =====================================================
+   KONFIGURASI TEMA PETA (BODY ATTRIBUTES)
+   ===================================================== */
+
+/* --- TEMA 1: Tanjungpinang (Default Chocolate/Warm Brown) --- */
+body[data-theme="tanjungpinang"] {
+  --bg: #eef4f7;
+  --land: #ebdcc6;
+  --water: #bae6fd;
+  --road-casing: #1e293b;
+  --road-surface: #334155;
+  --road-lane: #ffffff;
+  --building: #c9b292;
+  --park: #6abf69;
+  --teal: #0f766e;
+}
+body[data-theme="tanjungpinang"] .land-fill { fill: #f4efe5; }
+body[data-theme="tanjungpinang"] .sidewalk-fill { stroke: #e5e2d9; }
+body[data-theme="tanjungpinang"] .road-fill { stroke: #334155; }
+body[data-theme="tanjungpinang"] .road-casing { stroke: #1e293b; }
+body[data-theme="tanjungpinang"] .road-edge { stroke: #fbbf24; opacity: 0.85; }
+body[data-theme="tanjungpinang"] .road-center { stroke: #ffffff; }
+
+/* --- TEMA 2: Metropolitan City (Concrete Sleek Slate) --- */
+body[data-theme="city"] {
+  --bg: #cbd5e1;
+  --land: #eaeef2;
+  --water: #bae6fd;
+  --road-casing: #0f172a;
+  --road-surface: #1e293b;
+  --road-lane: #cbd5e1;
+  --building: #475569;
+  --park: #94a3b8;
+  --teal: #1e293b;
+}
+body[data-theme="city"] .land-fill { fill: #eaeef2; }
+body[data-theme="city"] .sidewalk-fill { stroke: #cbd5e1; }
+body[data-theme="city"] .road-fill { stroke: #1e293b; }
+body[data-theme="city"] .road-casing { stroke: #0f172a; }
+body[data-theme="city"] .road-edge { stroke: #ffffff; opacity: 0.95; }
+body[data-theme="city"] .road-center { stroke: #fcd34d; stroke-dasharray: 6 10; } /* Double yellow styling or modern dashes */
+body[data-theme="city"] .bldg-base { fill: #475569; stroke: #334155; }
+body[data-theme="city"] .bldg-roof { fill: #64748b; stroke: #475569; }
+body[data-theme="city"] .bldg-detail { fill: #334155; }
+body[data-theme="city"] .park-fill { fill: #94a3b8; stroke: #64748b; }
+body[data-theme="city"] .tree-crown { fill: #334155; opacity: 0.85; }
+body[data-theme="city"] .tree-trunk { fill: #1e293b; }
+
+/* --- TEMA 3: Pedesaan / Rural (Natural Grass & Rustic Soil) --- */
+body[data-theme="rural"] {
+  --bg: #d9f99d;
+  --land: #f7fee7;
+  --water: #a5f3fc;
+  --road-casing: #78350f;
+  --road-surface: #d97706;
+  --road-lane: #b45309;
+  --building: #b45309;
+  --park: #a3e635;
+  --teal: #15803d;
+}
+body[data-theme="rural"] .land-fill { fill: #f7fee7; }
+body[data-theme="rural"] .sidewalk-fill { stroke: #ecfccb; opacity: 0.45; }
+body[data-theme="rural"] .road-fill { stroke: #d97706; }
+body[data-theme="rural"] .road-casing { stroke: #78350f; }
+body[data-theme="rural"] .road-edge { stroke: none; opacity: 0; } /* No high-tech highway borders in rural! */
+body[data-theme="rural"] .road-center { stroke: #a16207; stroke-dasharray: none; stroke-width: 0.8px; opacity: 0.5; } /* Dirt centerline marks */
+body[data-theme="rural"] .bldg-base { fill: #b45309; stroke: #78350f; }
+body[data-theme="rural"] .bldg-roof { fill: #ca8a04; stroke: #b45309; }
+body[data-theme="rural"] .bldg-detail { fill: #78350f; }
+body[data-theme="rural"] .park-fill { fill: #bef264; stroke: #a3e635; }
+body[data-theme="rural"] .tree-crown { fill: #15803d; opacity: 0.95; }
+body[data-theme="rural"] .tree-trunk { fill: #451a03; }
+body[data-theme="rural"] .sawah-fill { fill: #84cc16; stroke: #65a30d; }
+body[data-theme="rural"] .sawah-plant { stroke: #14532d; }
+
+/* --- TEMA 4: Pesisir Pantai / Coastal (Golden Sand Beach & Teal Water) --- */
+body[data-theme="coastal"] {
+  --bg: #fef08a;
+  --land: #fef9c3;
+  --water: #0ea5e9;
+  --road-casing: #1e293b;
+  --road-surface: #475569;
+  --road-lane: #ffffff;
+  --building: #0284c7;
+  --park: #10b981;
+  --teal: #0d9488;
+}
+body[data-theme="coastal"] .land-fill { fill: #fef9c3; }
+body[data-theme="coastal"] .sidewalk-fill { stroke: #cbd5e1; opacity: 0.8; }
+body[data-theme="coastal"] .road-fill { stroke: #475569; }
+body[data-theme="coastal"] .road-casing { stroke: #1e293b; }
+body[data-theme="coastal"] .road-edge { stroke: #06b6d4; opacity: 0.75; }
+body[data-theme="coastal"] .road-center { stroke: #ffffff; stroke-dasharray: 4 6; }
+body[data-theme="coastal"] .bldg-base { fill: #f8fafc; stroke: #cbd5e1; }
+body[data-theme="coastal"] .bldg-roof { fill: #0284c7; stroke: #0369a1; }
+body[data-theme="coastal"] .bldg-detail { fill: #0369a1; }
+body[data-theme="coastal"] .park-fill { fill: #a7f3d0; stroke: #34d399; }
+body[data-theme="coastal"] .tree-crown { fill: #059669; opacity: 0.9; }
+body[data-theme="coastal"] .tree-trunk { fill: #b45309; }
+
+/* --- TEMA 5: Pegunungan & Hutan / Highland (Alpine Pines & Charcoal Roads) --- */
+body[data-theme="highland"] {
+  --bg: #064e3b;
+  --land: #14532d;
+  --water: #0284c7;
+  --road-casing: #020617;
+  --road-surface: #0f172a;
+  --road-lane: #fbbf24;
+  --building: #78350f;
+  --park: #064e3b;
+  --teal: #14532d;
+}
+body[data-theme="highland"] .land-fill { fill: #0f3e21; }
+body[data-theme="highland"] .sidewalk-fill { stroke: #1e293b; opacity: 0.7; }
+body[data-theme="highland"] .road-fill { stroke: #0f172a; }
+body[data-theme="highland"] .road-casing { stroke: #020617; }
+body[data-theme="highland"] .road-edge { stroke: #ca8a04; opacity: 0.65; }
+body[data-theme="highland"] .road-center { stroke: #fbbf24; stroke-dasharray: 8 12; }
+body[data-theme="highland"] .bldg-base { fill: #451a03; stroke: #270500; }
+body[data-theme="highland"] .bldg-roof { fill: #ca8a04; stroke: #a16207; }
+body[data-theme="highland"] .bldg-detail { fill: #270500; }
+body[data-theme="highland"] .park-fill { fill: #064e3b; stroke: #022c22; }
+body[data-theme="highland"] .tree-crown { fill: #022c22; opacity: 0.95; }
+body[data-theme="highland"] .tree-trunk { fill: #1e1b4b; }
+
+
